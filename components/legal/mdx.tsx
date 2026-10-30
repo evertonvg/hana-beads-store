@@ -5,11 +5,11 @@ import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
 import { getContact } from "@/lib/contact";
 
-type CanalVariant = "nome" | "short" | "direct" | "via" | "link";
+type CanalVariant = "nome" | "short" | "direct" | "via" | "handle" | "link";
 
 /**
  * The configured contact channel, as text inside legal copy. This is the only place the MDX
- * mentions it. Variants are the fields of the contact channel (name, short, direct, via) plus
+ * mentions it. Variants are the fields of the contact channel (name, short, direct, via, handle) plus
  * "link", a link to the channel inbox.
  */
 export function Canal({ variant = "nome" }: { variant?: CanalVariant }) {
@@ -24,9 +24,13 @@ export function Canal({ variant = "nome" }: { variant?: CanalVariant }) {
   return (
     <>
       {
-        { nome: channel.name, short: channel.short, direct: channel.direct, via: channel.via }[
-          variant
-        ]
+        {
+          nome: channel.name,
+          short: channel.short,
+          direct: channel.direct,
+          via: channel.via,
+          handle: channel.handle,
+        }[variant]
       }
     </>
   );
@@ -55,7 +59,7 @@ export function Section({
     <section
       id={id}
       aria-labelledby={`${id}-titulo`}
-      className="flex scroll-mt-6 flex-col gap-4 pt-3"
+      className="flex scroll-mt-24 flex-col gap-4 pt-3 md:scroll-mt-6"
     >
       <h2 id={`${id}-titulo`} className="font-pixel text-[13px] leading-relaxed md:text-[15px]">
         <span className="text-yellow">{n}</span> {title}

@@ -47,6 +47,34 @@ describe("getContact", () => {
   });
 });
 
+describe("getContact text fields", () => {
+  it("names Instagram for running text, with the @handle", () => {
+    const c = getContact(env);
+    expect([c.name, c.direct, c.via, c.handle]).toEqual([
+      "Instagram",
+      "Direct",
+      "Direct do Instagram",
+      "@pixelperfect.teste",
+    ]);
+    expect(getContact({ ...env, instagramUser: null }).handle).toBe("@[usuario]");
+  });
+
+  it("names WhatsApp for running text, with the number", () => {
+    const c = getContact({
+      ...env,
+      contactChannel: "whatsapp",
+      whatsappNumber: "+55 11 99999-9999",
+    });
+    expect([c.name, c.direct, c.via, c.handle]).toEqual([
+      "WhatsApp",
+      "WhatsApp",
+      "WhatsApp",
+      "+55 11 99999-9999",
+    ]);
+    expect(getContact({ ...env, contactChannel: "whatsapp" }).handle).toBe("[numero]");
+  });
+});
+
 describe("contactLabel", () => {
   it("uses DIRECT for Instagram", () => {
     const c = getContact(env);

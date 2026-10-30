@@ -9,6 +9,8 @@ export type ContactChannel = {
   direct: string;
   /** The channel with its inbox, for running text ("Direct do Instagram", "WhatsApp"). */
   via: string;
+  /** How people find the account: "@user" (or "@[usuario]" until set), the phone number ("[numero]"). */
+  handle: string;
   color: "contact" | "whatsapp";
   icon: "send" | "chat";
   href(msg?: string): string;
@@ -22,6 +24,7 @@ const CHANNELS: Record<PublicEnv["contactChannel"], (env: PublicEnv) => ContactC
     short: "DIRECT",
     direct: "Direct",
     via: "Direct do Instagram",
+    handle: `@${env.instagramUser ?? "[usuario]"}`,
     color: "contact",
     icon: "send",
     href: () => `https://ig.me/m/${env.instagramUser ?? "[usuario]"}`,
@@ -33,6 +36,7 @@ const CHANNELS: Record<PublicEnv["contactChannel"], (env: PublicEnv) => ContactC
     short: "WHATSAPP",
     direct: "WhatsApp",
     via: "WhatsApp",
+    handle: env.whatsappNumber ?? "[numero]",
     color: "whatsapp",
     icon: "chat",
     href: (msg = "") =>

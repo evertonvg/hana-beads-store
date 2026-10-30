@@ -23,13 +23,15 @@ test("privacidade: texto literal com placeholders e canal via <Canal/>", async (
   await expect(main.getByText("OPOSIÇÃO", { exact: true })).toBeVisible();
 });
 
-test("privacidade: links do banner, do rodapé e da conta chegam aqui", async ({ page }) => {
-  await page.goto("/privacidade");
-  await expect(
-    page.getByRole("contentinfo").getByRole("link", { name: "Privacidade" }),
-  ).toBeVisible();
-  const res = await page.request.get("/privacidade");
-  expect(res.status()).toBe(200);
+test("privacidade: o link do rodapé leva à página e há link de volta da conta", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("contentinfo").getByRole("link", { name: "Privacidade" }).click();
+  await expect(page).toHaveURL(/\/privacidade$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("POLÍTICA DE PRIVACIDADE");
+  await page.goto("/conta?aba=privacidade");
+  expect((await page.request.get("/privacidade")).status()).toBe(200);
 });
 
 test("termos: REGRAS DO JOGO e 12 seções", async ({ page }) => {

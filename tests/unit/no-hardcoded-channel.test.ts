@@ -15,7 +15,7 @@ import { afterEach, describe, expect, it } from "vitest";
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const SCANNED_DIRS = ["app", "components", "content"];
 const ALLOWED_FILE = "lib/contact.ts";
-const FORBIDDEN = /Instagram|WhatsApp|\bDIRECT\b|Direct do/;
+const FORBIDDEN = /Instagram|WhatsApp|\bDIRECT\b|\bDirect\b/;
 
 /** Returns `path:line` for every forbidden channel word under `root/app`, `root/components` and `root/content`. */
 export function findHardcodedChannel(root: string): string[] {
