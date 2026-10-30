@@ -217,7 +217,7 @@ test.describe("Confirmação", () => {
   test("aparece o número do pedido, a barra de progresso e os botões", async ({ page }) => {
     await placeOrder(page, "cartao");
     await expect(page).toHaveURL(/\/pedido\/[^/]+\/confirmado$/);
-    await expect(page.getByText("#0001").first()).toBeVisible();
+    await expect(page.getByText("#0006").first()).toBeVisible();
     await expect(page.getByRole("progressbar", { name: "Progresso do pedido" })).toHaveAttribute(
       "aria-valuenow",
       "1",

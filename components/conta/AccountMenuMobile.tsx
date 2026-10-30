@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 import { getContact } from "@/lib/contact";
 import type { Order } from "@/lib/data/types";
 import { formatOrderNumber } from "@/lib/format";
-import { ORDER_STATUS_BADGE } from "@/lib/order-status";
+import { orderStatusView } from "@/lib/orders-view";
 import { LogoutButton } from "./LogoutButton";
 
 type Item = {
@@ -89,7 +89,7 @@ function items(addressCount: number): Item[] {
 
 /** `/conta` on the phone: last order card and the list of account options. */
 export function AccountMenuMobile({ lastOrder, addressCount }: Props) {
-  const badge = lastOrder ? ORDER_STATUS_BADGE[lastOrder.status] : null;
+  const badge = lastOrder ? orderStatusView(lastOrder) : null;
   return (
     <div className="flex flex-col md:hidden">
       {lastOrder && badge ? (

@@ -19,6 +19,7 @@ vi.mock("next/headers", () => ({
 import { lookupCepAction, placeOrderAction } from "@/app/(checkout)/checkout/actions";
 import { getData } from "@/lib/data";
 import { getMockStore } from "@/lib/data/mock/store";
+import { placedOrders } from "./placed-orders";
 
 const base = {
   name: "Nova Pessoa",
@@ -56,7 +57,7 @@ describe("placeOrderAction", () => {
     expect(a.status).toBe("ok");
     expect(a.redirectTo).toMatch(/^\/pedido\/[^/]+\/pagamento$/);
     expect(b.redirectTo).toBe(a.redirectTo);
-    const { orders } = getMockStore();
+    const orders = placedOrders();
     expect(orders).toHaveLength(1);
     expect(orders[0]?.userId).toBeNull();
     expect(JSON.parse(jar.get("pp_guest_orders") ?? "[]")).toEqual([orders[0]?.guestToken]);
@@ -77,20 +78,20 @@ describe("placeOrderAction", () => {
     const r = await placeOrderAction({ ...base, cpf: "111.111.111-11" });
     expect(r.status).toBe("error");
     expect(r.fieldErrors?.cpf).toBe("Informe um CPF válido.");
-    expect(getMockStore().orders).toHaveLength(0);
+    expect(placedOrders()).toHaveLength(0);
   });
 
   it("rejects an empty cart and a shipping id the server did not quote", async () => {
     expect((await placeOrderAction({ ...base, lines: [] })).status).toBe("error");
     const r = await placeOrderAction({ ...base, shippingId: "gratis" });
     expect(r.fieldErrors?.shippingId).toBeDefined();
-    expect(getMockStore().orders).toHaveLength(0);
+    expect(placedOrders()).toHaveLength(0);
   });
 
   it("re-validates the coupon on the server", async () => {
     const bad = await placeOrderAction({ ...base, couponCode: "EXPIRADO" });
     expect(bad.status).toBe("error");
-    expect(getMockStore().orders).toHaveLength(0);
+    expect(placedOrders()).toHaveLength(0);
     const ok = await placeOrderAction({ ...base, couponCode: "teste10" });
     expect(ok.status).toBe("ok");
   });
@@ -120,7 +121,7 @@ describe("placeOrderAction", () => {
     });
     expect(r.status).toBe("error");
     expect(r.fieldErrors?.email).toBe("E-mail já cadastrado.");
-    expect(getMockStore().orders).toHaveLength(0);
+    expect(placedOrders()).toHaveLength(0);
     expect(createSession).not.toHaveBeenCalled();
   });
 });
@@ -132,7 +133,7 @@ describe("card data", () => {
     const noToken = await placeOrderAction({ ...base, payment: "cartao", card });
     expect(noToken.status).toBe("error");
     expect(noToken.fieldErrors?.cardToken).toBeDefined();
-    expect(getMockStore().orders).toHaveLength(0);
+    expect(placedOrders()).toHaveLength(0);
 
     const ok = await placeOrderAction({
       ...base,

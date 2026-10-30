@@ -4,7 +4,7 @@ import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
 import type { Order } from "@/lib/data/types";
 import { formatDate, formatOrderNumber } from "@/lib/format";
-import { ORDER_STATUS_BADGE } from "@/lib/order-status";
+import { orderStatusView } from "@/lib/orders-view";
 import { inlineLink, panelTitle } from "./styles";
 
 const itemsText = (order: Order) => {
@@ -38,7 +38,7 @@ export function OrdersPreview({ orders }: { orders: Order[] }) {
       ) : (
         <ul className="m-0 flex list-none flex-col gap-[22px] p-0">
           {orders.map((order) => {
-            const badge = ORDER_STATUS_BADGE[order.status];
+            const badge = orderStatusView(order);
             return (
               <li
                 key={order.id}

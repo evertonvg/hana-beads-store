@@ -30,7 +30,7 @@ export function ProfileTabs({ current }: { current: AccountTab }) {
         return (
           <Link
             key={tab.id}
-            href={`/conta?aba=${tab.id}`}
+            href={tab.id === "pedidos" ? "/conta/pedidos" : `/conta?aba=${tab.id}`}
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex min-h-[52px] items-center border-[3px] p-4 font-pixel text-[10px] leading-normal",

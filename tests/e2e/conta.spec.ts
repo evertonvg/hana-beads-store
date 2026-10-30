@@ -110,7 +110,7 @@ test.describe("endereços", () => {
 
 test.describe("pedidos", () => {
   test("sem pedidos mostra o aviso e o link para a lista completa", async ({ page }) => {
-    await openTab(page, "pedidos");
+    await openTab(page, "pedidos", "bruno");
     await expect(page.getByText("Você ainda não fez pedidos.")).toBeVisible();
     await expect(page.getByRole("link", { name: "VER TODOS ›" })).toHaveAttribute(
       "href",
@@ -129,9 +129,12 @@ test.describe("pedidos", () => {
     await setOrderStatus(page, orderIdOf(page), "em_producao");
 
     await gotoHydrated(page, "/conta?aba=pedidos");
-    await expect(page.getByText("PEDIDO #0001")).toBeVisible();
-    await expect(page.getByText("EM PRODUÇÃO")).toBeVisible();
-    await expect(page.getByRole("link", { name: /Ver detalhes/ })).toHaveAttribute(
+    // Ana's five fixture orders come first, so the new one is #0006; the preview shows the newest two.
+    const created = page.getByRole("listitem").filter({ hasText: "PEDIDO #0006" });
+    await expect(created).toBeVisible();
+    await expect(created.getByText("EM PRODUÇÃO")).toBeVisible();
+    await expect(page.getByText("PEDIDO #0005")).toBeVisible();
+    await expect(created.getByRole("link", { name: /Ver detalhes/ })).toHaveAttribute(
       "href",
       "/conta/pedidos",
     );

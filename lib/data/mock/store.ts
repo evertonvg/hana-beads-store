@@ -5,6 +5,7 @@ import type { Address, Order, Product } from "@/lib/data/types";
 import {
   addressFixtures,
   connectionFixtures,
+  orderFixtures,
   productFixtures,
   savedCartFixtures,
   userFixtures,
@@ -60,7 +61,7 @@ function createStore(): MockStore {
     connections: structuredClone(connectionFixtures),
     savedCarts: structuredClone(savedCartFixtures),
     passwordResets: [],
-    orders: [],
+    orders: structuredClone([...orderFixtures]),
     orderKeys: {},
     reset() {
       store.products = structuredClone([...productFixtures]);
@@ -73,7 +74,7 @@ function createStore(): MockStore {
       store.connections = structuredClone(connectionFixtures);
       store.savedCarts = structuredClone(savedCartFixtures);
       store.passwordResets = [];
-      store.orders = [];
+      store.orders = structuredClone([...orderFixtures]);
       store.orderKeys = {};
     },
   };

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createMockOrders } from "@/lib/data/mock/orders";
 import { getMockStore } from "@/lib/data/mock/store";
+import { placedOrders } from "./placed-orders";
 import type { CreateOrderInput } from "@/lib/data/ports";
 
 const input = (over: Partial<CreateOrderInput> = {}): CreateOrderInput => ({
@@ -59,7 +60,7 @@ describe("mock orders", () => {
     const c = await port.create(input({ guestToken: "other" }), "key-1");
     expect(a.id).toBe(b.id);
     expect(c.id).toBe(a.id);
-    expect(getMockStore().orders).toHaveLength(1);
+    expect(placedOrders()).toHaveLength(1);
     const d = await port.create(input(), "key-2");
     expect(d.id).not.toBe(a.id);
     expect(d.number).not.toBe(a.number);
@@ -85,7 +86,8 @@ describe("mock orders", () => {
     const port = createMockOrders();
     const mine = await port.create(input({ userId: "ana", guestToken: null }), "k2");
     await port.create(input(), "k1");
-    expect((await port.listForUser("ana")).map((o) => o.id)).toEqual([mine.id]);
+    expect((await port.listForUser("ana")).map((o) => o.id).slice(0, 1)).toEqual([mine.id]);
+    expect(await port.listForUser("ana")).toHaveLength(6);
     await port.setStatus(mine.id, "pago");
     const after = await port.get(mine.id, { userId: "ana", guestTokens: [] });
     expect(after?.status).toBe("pago");

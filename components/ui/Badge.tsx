@@ -9,6 +9,7 @@ const badgeVariants = cva("inline-block px-2 py-1.5 font-pixel text-[7px] md:tex
       cyan: "bg-cyan text-bg",
       accent: "bg-accent text-bg",
       muted: "bg-surface-2 text-text-muted",
+      subtle: "bg-text-subtle text-bg",
       purple: "bg-purple text-bg",
     },
   },

@@ -3,6 +3,10 @@ import type { Order } from "@/lib/data/types";
 
 import { getMockStore } from "./store";
 
+/** One after the highest number in use, so the fixture orders (#0001 to #0005) are never reused. */
+const nextNumber = (orders: Order[]) =>
+  String(Math.max(0, ...orders.map((o) => Number(o.number))) + 1).padStart(4, "0");
+
 /** In-memory orders. `create` is synchronous inside, so the key check and the insert never interleave. */
 export function createMockOrders(): OrdersPort {
   return {
@@ -15,7 +19,7 @@ export function createMockOrders(): OrdersPort {
       const at = new Date().toISOString();
       const order: Order = {
         id: `ord_${crypto.randomUUID()}`,
-        number: String(store.orders.length + 1).padStart(4, "0"),
+        number: nextNumber(store.orders),
         userId: input.userId,
         guestToken: input.guestToken,
         status: "aguardando_pagamento",
@@ -34,7 +38,7 @@ export function createMockOrders(): OrdersPort {
         events: [{ status: "aguardando_pagamento", at }],
         payment: null,
       };
-      store.orders.push(order);
+      store.orders.unshift(order);
       store.orderKeys[idempotencyKey] = order.id;
       return Promise.resolve(structuredClone(order));
     },
@@ -49,7 +53,9 @@ export function createMockOrders(): OrdersPort {
     },
 
     listForUser(userId) {
-      const mine = getMockStore().orders.filter((o) => o.userId === userId);
+      const mine = getMockStore()
+        .orders.filter((o) => o.userId === userId)
+        .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
       return Promise.resolve(structuredClone(mine));
     },
 

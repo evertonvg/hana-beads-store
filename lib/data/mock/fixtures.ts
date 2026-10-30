@@ -1,6 +1,14 @@
 import type { CartData } from "@/lib/cart/types";
 import type { Connection } from "@/lib/data/ports";
-import type { Address, BeadArtSpec, Product } from "@/lib/data/types";
+import type {
+  Address,
+  BeadArtSpec,
+  Customer,
+  Order,
+  OrderItem,
+  OrderStatus,
+  Product,
+} from "@/lib/data/types";
 
 /** Mock accounts. Plain-text passwords exist only because this is an in-memory mock. */
 export type MockUser = {
@@ -332,4 +340,136 @@ export const productFixtures: readonly Product[] = [
     illustrative: true,
     featuredRank: 9,
   },
+];
+
+const anaCustomer: Customer = {
+  name: "Ana Souza",
+  email: "ana@teste.dev",
+  phone: "(11) 91234-5678",
+  cpf: "529.982.247-25",
+};
+
+const anaAddress: Address = {
+  cep: "01001-000",
+  street: "Praça da Sé",
+  number: "100",
+  complement: "",
+  district: "Sé",
+  city: "São Paulo",
+  state: "SP",
+};
+
+// Item names are the snapshot kept in the order, so they do not follow the catalog names.
+const garotaItem: OrderItem = {
+  productId: "garota",
+  name: "Garota Pixel",
+  ring: "mosquetao",
+  unitPriceCents: null,
+  qty: 1,
+  image: {
+    url: "/img/produtos/garota-pixel.webp",
+    alt: "Chaveiro de personagem em pixel art com cabelo rosa",
+  },
+};
+const e13Item: OrderItem = {
+  productId: "e13",
+  name: "Estrela nº 13",
+  ring: "mosquetao",
+  unitPriceCents: null,
+  qty: 1,
+  image: {
+    url: "/img/produtos/estrela-numero-13.webp",
+    alt: "Chaveiro de estrela vermelha com o número 13",
+  },
+};
+const erItem: OrderItem = {
+  productId: "er",
+  name: "Estrela inicial R",
+  ring: "mosquetao",
+  unitPriceCents: null,
+  qty: 1,
+  image: {
+    url: "/img/produtos/estrela-inicial-r.webp",
+    alt: "Chaveiro de estrela vermelha e rosa com a letra R",
+  },
+};
+const customItem: OrderItem = {
+  productId: null,
+  name: "Chaveiro personalizado",
+  ring: "mosquetao",
+  unitPriceCents: null,
+  qty: 1,
+  image: null,
+};
+
+function anaOrder(
+  n: number,
+  status: OrderStatus,
+  over: Partial<Order> & Pick<Order, "items" | "paymentMethod" | "createdAt">,
+): Order {
+  const number = String(n).padStart(4, "0");
+  return {
+    id: `ord_${number}`,
+    number,
+    userId: "ana",
+    guestToken: null,
+    status,
+    subtotalCents: null,
+    shippingCents: null,
+    discountCents: 0,
+    totalCents: null,
+    shippingAddress: anaAddress,
+    customer: anaCustomer,
+    shippingService: "PAC",
+    trackingCode: null,
+    isCustom: false,
+    events: [{ status, at: over.createdAt }],
+    payment: null,
+    ...over,
+  };
+}
+
+const pixApproved = {
+  kind: "pix",
+  copyPaste: "[pix copia e cola]",
+  expiresAt: "2026-08-01T12:30:00.000Z",
+} as const;
+
+/**
+ * Ana's order history, the five orders of docs/design/desktop/Pedidos.dc.html. Dates are obvious
+ * test data (the design shows `[00/00/0000]`); prices stay null like the whole catalog.
+ */
+export const orderFixtures: readonly Order[] = [
+  anaOrder(1, "cancelado", {
+    items: [erItem],
+    paymentMethod: "boleto",
+    createdAt: "2026-06-02T15:00:00.000Z",
+    payment: { kind: "boleto", line: "[linha digitável]", pdfUrl: null, dueDate: null },
+  }),
+  anaOrder(2, "entregue", {
+    items: [garotaItem],
+    paymentMethod: "pix",
+    createdAt: "2026-06-20T15:00:00.000Z",
+    trackingCode: "[AA000000000BR]",
+    payment: pixApproved,
+  }),
+  anaOrder(3, "enviado", {
+    items: [e13Item],
+    paymentMethod: "cartao",
+    createdAt: "2026-07-10T15:00:00.000Z",
+    trackingCode: "[AA000000000BR]",
+    payment: { kind: "cartao", result: "aprovado", last4: "0000" },
+  }),
+  anaOrder(4, "aguardando_aprovacao", {
+    items: [customItem],
+    paymentMethod: "pix",
+    createdAt: "2026-07-25T15:00:00.000Z",
+    isCustom: true,
+  }),
+  anaOrder(5, "em_producao", {
+    items: [garotaItem, erItem],
+    paymentMethod: "pix",
+    createdAt: "2026-08-01T12:00:00.000Z",
+    payment: pixApproved,
+  }),
 ];
