@@ -13,17 +13,17 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
-const SCANNED_DIRS = ["app", "components"];
+const SCANNED_DIRS = ["app", "components", "content"];
 const ALLOWED_FILE = "lib/contact.ts";
 const FORBIDDEN = /Instagram|WhatsApp|\bDIRECT\b|Direct do/;
 
-/** Returns `path:line` for every forbidden channel word under `root/app` and `root/components`. */
+/** Returns `path:line` for every forbidden channel word under `root/app`, `root/components` and `root/content`. */
 export function findHardcodedChannel(root: string): string[] {
   const hits: string[] = [];
   for (const dir of SCANNED_DIRS) {
     walk(join(root, dir), (file) => {
       const rel = relative(root, file).split(sep).join("/");
-      if (rel === ALLOWED_FILE || !/\.tsx?$/.test(rel)) return;
+      if (rel === ALLOWED_FILE || !/\.(tsx?|mdx)$/.test(rel)) return;
       readFileSync(file, "utf8")
         .split("\n")
         .forEach((line, i) => {
@@ -49,7 +49,7 @@ function walk(dir: string, onFile: (file: string) => void): void {
 }
 
 describe("hardcoded contact channel", () => {
-  it("finds no channel words in app/ or components/ outside lib/contact.ts", () => {
+  it("finds no channel words in app/, components/ or content/ outside lib/contact.ts", () => {
     expect(findHardcodedChannel(REPO_ROOT)).toEqual([]);
   });
 
@@ -84,6 +84,13 @@ describe("hardcoded contact channel", () => {
         "app/loja/x.ts": "const c = 'WhatsApp';\n",
       });
       expect(findHardcodedChannel(root).sort()).toEqual(["app/loja/x.ts:1", "app/page.tsx:2"]);
+    });
+
+    it("reports a legal MDX page that names the channel instead of using <Canal/>", () => {
+      const root = fixture({
+        "content/legal/x.mdx": "# Termos\n\nFale pelo Direct do Instagram\n",
+      });
+      expect(findHardcodedChannel(root)).toEqual(["content/legal/x.mdx:3"]);
     });
 
     it("ignores lib/contact.ts, which is the single allowed place", () => {
