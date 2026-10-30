@@ -48,7 +48,7 @@ export async function generateMetadata({
 }
 
 const linkClass = cn(
-  "inline-flex min-h-11 items-center text-link underline underline-offset-4 hover:text-yellow",
+  "inline-flex min-h-11 min-w-11 items-center justify-center text-link underline underline-offset-4 hover:text-yellow",
   focusRing,
 );
 

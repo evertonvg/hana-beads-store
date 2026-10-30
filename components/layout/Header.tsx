@@ -27,7 +27,7 @@ const LOGO_PALETTE = {
   t: "var(--color-text)",
 };
 
-const navLink = cn("inline-flex min-h-11 items-center", focusRing);
+const navLink = cn("inline-flex min-h-11 min-w-11 items-center justify-center", focusRing);
 
 /**
  * Site header: desktop bar from `md`, compact bar with menu button below it.

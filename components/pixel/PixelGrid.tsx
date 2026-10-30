@@ -54,7 +54,7 @@ export function PixelGrid({
           return (
             <span
               key={`${y}-${x}`}
-              className={shape === "bead" && color ? "rounded-full" : undefined}
+              className={shape === "bead" && color ? "bead rounded-full" : undefined}
               style={color ? { background: color, boxShadow: cellShadow } : undefined}
             />
           );

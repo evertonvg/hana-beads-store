@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 import { getContact } from "@/lib/contact";
 
 const linkClass = cn(
-  "inline-flex min-h-11 items-center text-link underline-offset-4 hover:text-yellow hover:underline",
+  "inline-flex min-h-11 min-w-11 items-center justify-center text-link underline-offset-4 hover:text-yellow hover:underline",
   focusRing,
 );
 
