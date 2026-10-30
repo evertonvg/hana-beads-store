@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    // /trocas sends up to 4 photos of 5 MB (MAX_RETURN_PHOTO_BYTES) in one Server Action request.
+    serverActions: { bodySizeLimit: "21mb" },
+  },
   turbopack: {
     rules: {
       "*.css": {

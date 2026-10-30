@@ -10,6 +10,7 @@ import type {
   PixPayment,
   Product,
 } from "@/lib/data/types";
+import type { ReturnPreference, ReturnReason } from "@/lib/validation/return";
 import type { ShopQuery } from "@/lib/shop-query";
 
 export interface CatalogPort {
@@ -205,6 +206,26 @@ export interface PaymentsPort {
   status(orderId: string): Promise<OrderStatus>;
 }
 
+export type CreateReturnInput = {
+  orderId: string;
+  reason: ReturnReason;
+  description: string;
+  preference: ReturnPreference;
+  photos: File[];
+};
+
+export type CreateReturnError = {
+  error:
+    | "pedido_nao_encontrado" // not the user's order (or unknown)
+    | "pedido_indisponivel" // not shipped yet
+    | "fora_do_prazo"; // "arrependimento" after 7 days from delivery
+};
+
+export interface ReturnsPort {
+  /** Protocol is `T-` plus 4 sequential digits. The order must belong to `userId`. */
+  create(userId: string, i: CreateReturnInput): Promise<{ protocol: string } | CreateReturnError>;
+}
+
 export type Ports = {
   catalog: CatalogPort;
   newsletter: NewsletterPort;
@@ -216,5 +237,6 @@ export type Ports = {
   addressLookup: AddressLookupPort;
   orders: OrdersPort;
   payments: PaymentsPort;
+  returns: ReturnsPort;
   // other ports are added by the tasks that use them
 };

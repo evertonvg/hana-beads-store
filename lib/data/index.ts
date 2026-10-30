@@ -11,6 +11,7 @@ import { createMockEngagement } from "./mock/engagement";
 import { createMockNewsletter } from "./mock/newsletter";
 import { createMockOrders } from "./mock/orders";
 import { createMockPayments } from "./mock/payments";
+import { createMockReturns } from "./mock/returns";
 import { createMockShipping } from "./mock/shipping";
 import type { Ports } from "./ports";
 
@@ -31,6 +32,7 @@ export function getData(): Ports {
     addressLookup: createMockAddressLookup(),
     orders: createMockOrders(),
     payments: createMockPayments(),
+    returns: createMockReturns(),
   };
   return ports;
 }

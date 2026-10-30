@@ -22,6 +22,16 @@ export type MockConsent = {
   granted: boolean;
 };
 
+export type MockReturn = {
+  protocol: string;
+  userId: string;
+  orderId: string;
+  reason: string;
+  description: string;
+  preference: string;
+  photos: { name: string; type: string; size: number }[];
+};
+
 export type MockStore = {
   products: Product[];
   newsletter: { email: string; consentVersion: string }[];
@@ -42,6 +52,8 @@ export type MockStore = {
   orders: Order[];
   /** idempotency key -> id of the order it created. */
   orderKeys: Record<string, string>;
+  /** Return requests, in the order they were made (the protocol number follows it). */
+  returns: MockReturn[];
   reset(): void;
 };
 
@@ -63,6 +75,7 @@ function createStore(): MockStore {
     passwordResets: [],
     orders: structuredClone([...orderFixtures]),
     orderKeys: {},
+    returns: [],
     reset() {
       store.products = structuredClone([...productFixtures]);
       store.newsletter = [];
@@ -76,6 +89,7 @@ function createStore(): MockStore {
       store.passwordResets = [];
       store.orders = structuredClone([...orderFixtures]);
       store.orderKeys = {};
+      store.returns = [];
     },
   };
   return store;
