@@ -20,9 +20,14 @@ async function expectA11y(page: Page) {
   expect(violations).toEqual([]);
 }
 
-/** Visual snapshot. Only compares inside the Docker container (VISUAL=1); no-op elsewhere. */
-async function snap(page: Page, name: string) {
+/**
+ * Visual snapshot. Only compares inside the Docker container (VISUAL=1); no-op elsewhere.
+ * Pages are captured full-length from the top (so a sticky header never lands mid-image after a
+ * focus scroll); pass `{ fullPage: false }` for overlays (drawers, sheets), which belong to the viewport.
+ */
+async function snap(page: Page, name: string, options: { fullPage?: boolean } = {}) {
   if (process.env.VISUAL !== "1") return;
+  const fullPage = options.fullPage ?? true;
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.evaluate(() => document.fonts.ready);
   // The banner mounts after hydration, so wait briefly instead of testing visibility once.
@@ -32,8 +37,9 @@ async function snap(page: Page, name: string) {
   } catch {
     // No banner on this page (consent already stored): nothing to dismiss.
   }
+  if (fullPage) await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await expect(page).toHaveScreenshot(`${name}.png`, {
-    fullPage: true,
+    fullPage,
     animations: "disabled",
     maxDiffPixelRatio: 0.01,
   });

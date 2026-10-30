@@ -10,7 +10,9 @@ services:
       - .:/app
       # Linux binaries live in a named volume, apart from the Windows ones in the host node_modules.
       - pp_node_modules:/app/node_modules
-    command: ["bash", "docker/playwright.sh"]
+    # entrypoint (not command): `docker compose run playwright --repeat-each=3` appends the flags to
+    # the script instead of replacing it. Plain `docker compose run playwright` runs the whole suite.
+    entrypoint: ["bash", "docker/playwright.sh"]
 
   # Optional analytics stack (Task 9): docker compose --profile analytics up -d
   umami:

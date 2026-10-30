@@ -56,7 +56,7 @@ test("ESTRELA x2 abre ITEM COLETADO! com argola e quantidade, e atualiza o carri
     "/checkout",
   );
   await expectA11y(page);
-  await snap(page, "produto-gaveta");
+  await snap(page, "produto-gaveta", { fullPage: false });
 
   await dialog.getByRole("button", { name: /CONTINUAR JOGANDO/ }).click();
   await expect(dialog).toHaveCount(0);

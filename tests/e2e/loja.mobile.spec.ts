@@ -27,7 +27,7 @@ test("FILTRAR abre a folha, aplicar cor mostra 1 item e fecha", async ({ page })
   // nothing is applied until APLICAR
   await expect(page).toHaveURL(/\/loja$/);
   await expectA11y(page);
-  await snap(page, "loja-filtros");
+  await snap(page, "loja-filtros", { fullPage: false });
   await sheet.getByRole("button", { name: "APLICAR" }).click();
   await expect(sheet).toHaveCount(0);
   await expect(page).toHaveURL(/cor=laranja/);
