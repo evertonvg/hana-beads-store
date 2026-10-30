@@ -20,6 +20,8 @@ export const pixelAccents = localFont({
   src: "./fonts/Silkscreen-Regular.ttf",
   weight: "400",
   display: "swap",
+  // Rare glyphs only (unicode-range): download on demand instead of preloading on every page.
+  preload: false,
   // No synthetic Arial fallback face: it would carry no unicode-range and capture every character.
   adjustFontFallback: false,
   variable: "--font-pixel-accents-face",
