@@ -56,6 +56,11 @@ export async function openRoute(page: Page, route: SweepRoute) {
   const response = await page.goto(route.path);
   // Web-first readiness: the page body is up (and the checkout form, which renders after hydration).
   await expect(page.getByRole("main")).toBeVisible();
+  // axe must see the hydrated DOM: before hydration Headless UI controls have no label wiring yet.
+  await page.waitForFunction(() =>
+    Object.keys(document).some((key) => key.startsWith("__reactContainer")),
+  );
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(null))));
   if (route.cart) {
     await expect(page.getByRole("heading", { level: 1, name: "SAVE GAME" })).toBeVisible();
   }
