@@ -1,4 +1,12 @@
-import { clampQty, lineKey, RING_OPTIONS, type CartData, type CartLine } from "./types";
+import { z } from "zod";
+import {
+  clampQty,
+  MAX_CART_LINES,
+  lineKey,
+  RING_OPTIONS,
+  type CartData,
+  type CartLine,
+} from "./types";
 
 function isLine(raw: unknown): raw is CartLine {
   if (typeof raw !== "object" || raw === null) return false;
@@ -26,12 +34,14 @@ function sumLines(lines: CartLine[]): CartLine[] {
   return [...byKey.values()];
 }
 
+const linesSchema = z.array(z.unknown()).max(MAX_CART_LINES);
+
 /** Validates untrusted data (localStorage, old versions): invalid shape gives an empty cart. */
 export function sanitizeCart(raw: unknown): CartData {
   if (typeof raw !== "object" || raw === null) return { lines: [] };
-  const lines = (raw as { lines?: unknown }).lines;
-  if (!Array.isArray(lines)) return { lines: [] };
-  return { lines: sumLines(lines.filter(isLine)) };
+  const parsed = linesSchema.safeParse((raw as { lines?: unknown }).lines);
+  if (!parsed.success) return { lines: [] };
+  return { lines: sumLines(parsed.data.filter(isLine)) };
 }
 
 /** Sums by key (clamped at 99); saved lines come first. */

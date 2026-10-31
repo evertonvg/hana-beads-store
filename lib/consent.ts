@@ -67,10 +67,6 @@ export const consentConfig: CookieConsentConfig = {
   },
 };
 
-export function hasConsent(category: OptionalCategory): boolean {
-  return CookieConsent.acceptedCategory(category);
-}
-
 export function openCookiePreferences(): void {
   CookieConsent.showPreferences();
 }

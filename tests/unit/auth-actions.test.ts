@@ -194,3 +194,17 @@ describe("logoutAction", () => {
     expect(destroySession).toHaveBeenCalledOnce();
   });
 });
+
+describe("cart line cap", () => {
+  const many = Array.from({ length: 51 }, () => ({
+    productId: "garota",
+    ring: "mosquetao",
+    qty: 1,
+  }));
+
+  it("syncCartAction ignores a local cart with more than 50 lines", async () => {
+    getSession.mockResolvedValue(ana);
+    const result = await syncCartAction(many, null);
+    expect(result?.lines.find((l) => l.productId === "garota")).toBeUndefined();
+  });
+});

@@ -3,10 +3,13 @@
 import { sanitizeCart } from "@/lib/cart/merge";
 import { priceLine } from "@/lib/cart/price";
 import { computeTotals, type PricedLine } from "@/lib/cart/totals";
-import { clampQty, type CartLine } from "@/lib/cart/types";
+import { clampQty, MAX_CART_LINES, type CartLine } from "@/lib/cart/types";
 import { getData } from "@/lib/data";
 import type { CouponResult, ShippingError, ShippingQuote } from "@/lib/data/ports";
+import { z } from "zod";
 import { couponSchema } from "@/lib/validation/coupon";
+
+const itemsSchema = z.array(z.custom<{ productId: string; qty: number }>()).max(MAX_CART_LINES);
 
 export type PricedCart = { lines: PricedLine[]; unknownIds: string[] };
 
@@ -38,7 +41,8 @@ export async function quoteShippingAction(input: {
   cep: string;
   items: { productId: string; qty: number }[];
 }): Promise<ShippingQuote[] | ShippingError> {
-  const requested = (Array.isArray(input.items) ? input.items : []).filter(
+  const parsedItems = itemsSchema.safeParse(input.items);
+  const requested = (parsedItems.success ? parsedItems.data : []).filter(
     (i) => typeof i?.productId === "string" && typeof i.qty === "number",
   );
   const products = await getData().catalog.byIds([...new Set(requested.map((i) => i.productId))]);

@@ -3,9 +3,11 @@ import { ConsentScripts } from "@/components/layout/ConsentScripts";
 import { CookieConsentBanner } from "@/components/layout/CookieConsent";
 import { mono, pixel, pixelAccents } from "./fonts";
 import { Providers } from "./providers";
+import { publicEnv } from "@/lib/env";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(publicEnv.siteUrl),
   title: "Pixel Perfect Artesanato",
   description: "Loja online de artesanato em continhas.",
 };
