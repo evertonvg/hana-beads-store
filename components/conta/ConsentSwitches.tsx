@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { setMarketingConsentAction } from "@/app/(conta)/conta/actions";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { Switch } from "@/components/ui/Switch";
 import type { FormState } from "@/lib/validation/form-state";
-
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 /** "COMUNICAÇÕES": optional consents. Each change is saved right away and kept in the history. */
 export function ConsentSwitches({ emailMarketing }: { emailMarketing: boolean }) {
@@ -41,12 +41,10 @@ export function ConsentSwitches({ emailMarketing }: { emailMarketing: boolean })
           description="Lançamentos e promoções"
         />
       </div>
-      <p
-        role={message?.ok === false ? "alert" : "status"}
-        className={message?.ok === false ? "text-sm text-danger-text" : "text-sm text-green"}
-      >
-        {message?.text}
-      </p>
+      <FormMessage
+        success={message?.ok ? message.text : null}
+        error={message?.ok === false ? message.text : null}
+      />
       <p className="m-0 mt-2 text-xs text-text-subtle">
         E-mails sobre seus pedidos (confirmação, envio) continuam chegando, pois fazem parte da
         compra.

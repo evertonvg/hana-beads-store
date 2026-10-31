@@ -3,14 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { getData } from "@/lib/data";
 import { getSession } from "@/lib/session";
-import { fieldErrorsFrom } from "@/lib/validation/form-state";
+import { fieldErrorsFrom, GENERIC_ERROR } from "@/lib/validation/form-state";
 import { returnSchema } from "@/lib/validation/return";
 
 export type ReturnResult =
   | { status: "ok"; protocol: string }
   | { status: "error"; message: string; fieldErrors?: Record<string, string> };
-
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
 
 const REJECTIONS = {
   pedido_nao_encontrado: { field: "orderId", text: "Pedido não encontrado." },

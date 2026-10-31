@@ -1,45 +1,53 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { cn } from "@/lib/cn";
+import { focusRing } from "./focus";
+import { useCopy } from "./useCopy";
 
 type Props = {
   value: string;
   label?: string;
   copiedLabel?: string;
   resetMs?: number;
+  /** Replaces the default look (a pixel-outlined button). Always keeps the focus ring. */
+  className?: string;
+  /** Extra classes while copied (e.g. the green background of the payment screens). */
+  copiedClassName?: string;
+  /** Decoration before the label (an `Icon`). */
+  icon?: ReactNode;
 };
 
-/** Copies `value` to the clipboard. A clipboard failure still swaps the label (as in the design). */
+const DEFAULT_LOOK =
+  "min-h-11 cursor-pointer border-[3px] border-text px-3.5 py-3 font-pixel text-[9px] text-text";
+
+/**
+ * Copies `value` to the clipboard. A clipboard failure still swaps the label (as in the design).
+ * The label change is not announced by itself, so a persistent `role="status"` region says it.
+ */
 export function CopyButton({
   value,
   label = "COPIAR",
   copiedLabel = "COPIADO ✓",
-  resetMs = 2500,
+  resetMs,
+  className,
+  copiedClassName,
+  icon,
 }: Props) {
-  const [copied, setCopied] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  useEffect(() => () => clearTimeout(timer.current), []);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(value);
-    } catch {
-      // Clipboard unavailable or denied: fall through, the label still changes.
-    }
-    setCopied(true);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setCopied(false), resetMs);
-  }
-
+  const { copied, copy } = useCopy(value, resetMs);
   return (
-    <button
-      type="button"
-      aria-live="polite"
-      onClick={() => void copy()}
-      className="min-h-11 cursor-pointer border-[3px] border-text px-3.5 py-3 font-pixel text-[9px] text-text outline-offset-2 outline-cyan focus-visible:outline-[3px]"
-    >
-      {copied ? copiedLabel : label}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={copy}
+        className={cn(className ?? DEFAULT_LOOK, copied && copiedClassName, focusRing)}
+      >
+        {icon}
+        {copied ? copiedLabel : label}
+      </button>
+      <span role="status" className="sr-only">
+        {copied ? "Copiado para a área de transferência." : null}
+      </span>
+    </>
   );
 }

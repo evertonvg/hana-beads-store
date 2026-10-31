@@ -13,7 +13,7 @@ import { isValidCep } from "@/lib/format";
 import { rememberGuestToken } from "@/lib/guest-orders";
 import { createSession, getSession } from "@/lib/session";
 import { CHECKOUT_CONSENT_VERSION, checkoutSchema } from "@/lib/validation/checkout";
-import { fieldErrorsFrom, type FormState } from "@/lib/validation/form-state";
+import { fieldErrorsFrom, type FormState, GENERIC_ERROR } from "@/lib/validation/form-state";
 
 /** `redirectTo` is where the client goes next; `accountCreated` tells it to sync the cart owner. */
 export type PlaceOrderResult = FormState & {
@@ -22,8 +22,6 @@ export type PlaceOrderResult = FormState & {
   /** Owner of the order when signed in: the client syncs its cart owner when it differs. */
   userId?: string;
 };
-
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
 
 const fail = (message: string, fieldErrors?: Record<string, string>): PlaceOrderResult => ({
   status: "error",

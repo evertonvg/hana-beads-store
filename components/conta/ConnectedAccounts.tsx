@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { connectProviderAction, disconnectProviderAction } from "@/app/(conta)/conta/actions";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
 import type { AuthProvider, Connection } from "@/lib/data/ports";
 import type { FormState } from "@/lib/validation/form-state";
 import { dashedBlock, subTitle } from "./styles";
-
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 const PROVIDERS: { id: AuthProvider; name: string; letter: string }[] = [
   { id: "google", name: "Google", letter: "G" },
@@ -83,12 +83,10 @@ export function ConnectedAccounts({ connections, authApple }: Props) {
           );
         })}
       </ul>
-      <p
-        role={message?.ok === false ? "alert" : "status"}
-        className={message?.ok === false ? "text-sm text-danger-text" : "text-sm text-green"}
-      >
-        {message?.text}
-      </p>
+      <FormMessage
+        success={message?.ok ? message.text : null}
+        error={message?.ok === false ? message.text : null}
+      />
     </section>
   );
 }

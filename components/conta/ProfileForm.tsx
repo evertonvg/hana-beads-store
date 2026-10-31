@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { updateProfileAction } from "@/app/(conta)/conta/actions";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { MaskedInput } from "@/components/ui/MaskedInput";
@@ -12,8 +13,8 @@ import type { Profile } from "@/lib/data/ports";
 import { profileSchema, type ProfileInput } from "@/lib/validation/account";
 import type { FormState } from "@/lib/validation/form-state";
 import { accountInput, saveButtonClass } from "./styles";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
 const FIELDS = ["name", "phone", "cpf"] as const;
 
 /** "Meus dados": name, e-mail (read only), phone and the optional CPF. */
@@ -126,12 +127,10 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         >
           SALVAR
         </Button>
-        <p
-          role="status"
-          className={message?.ok === false ? "text-sm text-danger-text" : "text-sm text-green"}
-        >
-          {message?.text}
-        </p>
+        <FormMessage
+          success={message?.ok ? message.text : null}
+          error={message?.ok === false ? message.text : null}
+        />
       </div>
     </form>
   );

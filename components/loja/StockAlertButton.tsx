@@ -6,6 +6,7 @@ import { useActionState, useId, useState, useTransition, type ReactNode } from "
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
 import { stockAlertAction } from "@/app/(loja)/loja/actions";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Field } from "@/components/ui/Field";
@@ -152,15 +153,12 @@ export function StockAlertButton({ productId, loggedIn, children }: Props) {
         </form>
       ) : null}
 
-      <p
-        role="status"
-        className={cn(
-          "text-[11px] leading-normal empty:hidden",
-          state.status === "error" ? "text-danger-text" : "text-text-subtle",
-        )}
-      >
-        {state.status === "idle" ? null : state.message}
-      </p>
+      <FormMessage
+        success={state.status === "ok" ? state.message : null}
+        error={state.status === "error" ? state.message : null}
+        className="text-[11px] leading-normal"
+        successClassName="text-text-subtle"
+      />
     </>
   );
 }

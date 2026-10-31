@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const RESET_MS = 2500;
+export const COPY_RESET_MS = 2500;
 
 /** Copies text to the clipboard. A clipboard failure still flips `copied` (as in the design). */
-export function useCopy(value: string) {
+export function useCopy(value: string, resetMs: number = COPY_RESET_MS) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -19,7 +19,7 @@ export function useCopy(value: string) {
     }
     setCopied(true);
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => setCopied(false), RESET_MS);
+    timer.current = setTimeout(() => setCopied(false), resetMs);
   }
 
   return { copied, copy: () => void copy() };

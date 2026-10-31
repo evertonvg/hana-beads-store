@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { saveAddressAction } from "@/app/(conta)/conta/actions";
 import { AddressFields } from "@/components/address/AddressFields";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Field } from "@/components/ui/Field";
@@ -17,8 +18,8 @@ import {
 } from "@/lib/validation/address";
 import type { FormState } from "@/lib/validation/form-state";
 import { accountInput } from "./styles";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
 const FIELDS = [
   "label",
   "cep",
@@ -128,9 +129,7 @@ export function AddressForm({ address, onDone, onCancel }: Props) {
           />
         )}
       />
-      <p role="alert" className="text-sm text-danger-text empty:hidden">
-        {formError}
-      </p>
+      <FormMessage error={formError} />
       <div className="flex flex-wrap gap-3">
         <Button
           type="submit"

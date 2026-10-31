@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { createReturnAction } from "@/app/(loja)/trocas/actions";
 import { Placeholder } from "@/components/legal/mdx";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
@@ -13,8 +14,7 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { returnSchema, type ReturnInput } from "@/lib/validation/return";
 import { PhotoPicker } from "./PhotoPicker";
-
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 const REASONS = [
   { value: "arrependimento", label: "Desisti da compra (até 7 dias)" },
@@ -214,9 +214,7 @@ export function ReturnForm({ orders, defaultOrderId }: Props) {
       >
         ENVIAR SOLICITAÇÃO
       </Button>
-      <p role="alert" className="m-0 text-sm text-danger-text">
-        {formError}
-      </p>
+      <FormMessage error={formError} />
     </form>
   );
 }

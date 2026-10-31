@@ -1,5 +1,6 @@
 "use client";
 
+import { CopyButton } from "@/components/ui/CopyButton";
 import { Button } from "@/components/ui/Button";
 import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
@@ -9,7 +10,6 @@ import { formatDate, formatOrderNumber } from "@/lib/format";
 import { PaymentWaitNote } from "./PaymentWaitNote";
 import { moneyLabel } from "./payment-format";
 import { SwitchToPixButton } from "./SwitchToPixButton";
-import { useCopy } from "./useCopy";
 import { usePaymentStatus } from "./usePaymentStatus";
 
 type Props = {
@@ -31,7 +31,6 @@ const factValue = "font-pixel text-xs";
 /** Boleto screen, "JOGO PAUSADO" (Aguardando.dc.html). Polls until the boleto is paid. */
 export function BoletoPanel({ order, payment }: Props) {
   const status = usePaymentStatus(order.id, order.status);
-  const copy = useCopy(payment.line);
 
   return (
     <div className="mx-auto flex w-full max-w-[900px] flex-col items-center gap-7 px-4 pt-8 pb-24 text-center md:gap-8 md:px-6 md:pt-[72px]">
@@ -87,17 +86,11 @@ export function BoletoPanel({ order, payment }: Props) {
                 focusRing,
               )}
             />
-            <button
-              type="button"
-              onClick={copy.copy}
-              className={cn(
-                "min-h-[52px] min-w-[96px] cursor-pointer px-4 font-pixel text-[9px] text-bg md:min-w-[120px]",
-                copy.copied ? "bg-green" : "bg-text",
-                focusRing,
-              )}
-            >
-              {copy.copied ? "COPIADO ✓" : "COPIAR"}
-            </button>
+            <CopyButton
+              value={payment.line}
+              className="min-h-[52px] min-w-[96px] cursor-pointer bg-text px-4 font-pixel text-[9px] text-bg md:min-w-[120px]"
+              copiedClassName="bg-green"
+            />
           </div>
         </div>
 

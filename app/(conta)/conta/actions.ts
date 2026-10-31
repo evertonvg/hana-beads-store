@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getData } from "@/lib/data";
-import type { AuthProvider } from "@/lib/data/ports";
+import { parseProvider } from "@/lib/auth/providers";
 import { publicEnv } from "@/lib/env";
 import { getSession } from "@/lib/session";
 import { addressSchema } from "@/lib/validation/address";
@@ -12,9 +12,8 @@ import {
   MARKETING_CONSENT_VERSION,
   profileSchema,
 } from "@/lib/validation/account";
-import { fieldErrorsFrom, type FormState } from "@/lib/validation/form-state";
+import { fieldErrorsFrom, type FormState, GENERIC_ERROR } from "@/lib/validation/form-state";
 
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
 const SESSION_ERROR = "Sua sessão expirou. Entre de novo.";
 
 const failed = (message = GENERIC_ERROR): FormState => ({ status: "error", message });
@@ -122,16 +121,9 @@ export async function setMarketingConsentAction(granted: unknown): Promise<FormS
   });
 }
 
-const PROVIDERS: readonly AuthProvider[] = ["google", "facebook", "apple"];
-
-function providerOf(value: unknown): AuthProvider | null {
-  const found = PROVIDERS.find((p) => p === value);
-  return found && (found !== "apple" || publicEnv.authApple) ? found : null;
-}
-
 /** The mock links every provider to the account e-mail; a real OAuth round trip replaces this. */
 export async function connectProviderAction(provider: unknown): Promise<FormState> {
-  const p = providerOf(provider);
+  const p = parseProvider(provider, publicEnv.authApple);
   if (!p) return failed();
   return asUser(async (userId) => {
     await getData().account.connect(userId, p);
@@ -140,7 +132,7 @@ export async function connectProviderAction(provider: unknown): Promise<FormStat
 }
 
 export async function disconnectProviderAction(provider: unknown): Promise<FormState> {
-  const p = providerOf(provider);
+  const p = parseProvider(provider, publicEnv.authApple);
   if (!p) return failed();
   return asUser(async (userId) => {
     const { ok } = await getData().account.disconnect(userId, p);

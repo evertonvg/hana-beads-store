@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { logoutAction } from "@/app/(conta)/actions";
 import { deleteAccountAction } from "@/app/(conta)/conta/actions";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { Field } from "@/components/ui/Field";
 import { focusRing } from "@/components/ui/focus";
 import { TextInput } from "@/components/ui/TextInput";
@@ -15,8 +16,7 @@ import { cn } from "@/lib/cn";
 import { deleteAccountSchema, type DeleteAccountInput } from "@/lib/validation/account";
 import type { FormState } from "@/lib/validation/form-state";
 import { accountInput } from "./styles";
-
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 /** "EXCLUIR MINHA CONTA": asks for the password, deletes, signs out and goes home with a notice. */
 export function DeleteAccount() {
@@ -99,9 +99,7 @@ export function DeleteAccount() {
               {...register("password")}
             />
           </Field>
-          <p role="alert" className="text-sm text-danger-text empty:hidden">
-            {formError}
-          </p>
+          <FormMessage error={formError} />
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"

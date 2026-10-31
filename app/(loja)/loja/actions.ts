@@ -2,7 +2,7 @@
 
 import { getData } from "@/lib/data";
 import { getSession } from "@/lib/session";
-import { fieldErrorsFrom, type FormState } from "@/lib/validation/form-state";
+import { fieldErrorsFrom, type FormState, GENERIC_ERROR } from "@/lib/validation/form-state";
 import { stockAlertSchema } from "@/lib/validation/stock-alert";
 
 export type FavoriteResult =
@@ -15,8 +15,6 @@ function field(formData: FormData, name: string): string {
   const value = formData.get(name);
   return typeof value === "string" ? value : "";
 }
-
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
 
 /** Favorites need an account: without a session the client is sent to /entrar. */
 export async function toggleFavoriteAction(productId: string): Promise<FavoriteResult> {

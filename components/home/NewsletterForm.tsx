@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import type { z } from "zod";
 import { Controller, useForm } from "react-hook-form";
 import { subscribeNewsletter } from "@/app/(loja)/actions";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Field } from "@/components/ui/Field";
@@ -109,15 +110,11 @@ export function NewsletterForm() {
           />
         )}
       />
-      <p
-        role="status"
-        className={cn(
-          "text-sm",
-          result.status === "error" ? "text-danger-text" : "font-bold text-green",
-        )}
-      >
-        {result.status === "idle" ? null : result.message}
-      </p>
+      <FormMessage
+        success={result.status === "ok" ? result.message : null}
+        error={result.status === "error" ? result.message : null}
+        successClassName="font-bold text-green"
+      />
     </form>
   );
 }

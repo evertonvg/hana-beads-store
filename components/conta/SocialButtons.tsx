@@ -2,12 +2,12 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import { socialAction } from "@/app/(conta)/actions";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
 import type { AuthProvider } from "@/lib/data/ports";
 import { useFinishAuth } from "./use-finish-auth";
-
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 const base = cn(
   "flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-3 border-[3px] px-4 font-sans text-sm font-medium",
@@ -113,9 +113,7 @@ export function SocialButtons({ next, apple }: Props) {
           {b.label}
         </button>
       ))}
-      <p role="alert" className="text-sm text-danger-text empty:hidden">
-        {error}
-      </p>
+      <FormMessage error={error} />
     </div>
   );
 }

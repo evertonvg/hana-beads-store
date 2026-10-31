@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useTransition } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { changePasswordAction } from "@/app/(conta)/conta/actions";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { TextInput } from "@/components/ui/TextInput";
@@ -11,8 +12,8 @@ import { changePasswordSchema, type ChangePasswordInput } from "@/lib/validation
 import type { FormState } from "@/lib/validation/form-state";
 import { PasswordRules } from "./PasswordRules";
 import { accountInput, dashedBlock, subTitle } from "./styles";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
 const FIELDS = ["current", "next", "confirm"] as const;
 const EMPTY: ChangePasswordInput = { current: "", next: "", confirm: "" };
 
@@ -95,12 +96,10 @@ export function ChangePasswordForm() {
         >
           ALTERAR SENHA
         </Button>
-        <p
-          role="status"
-          className={message?.ok === false ? "text-sm text-danger-text" : "text-sm text-green"}
-        >
-          {message?.text}
-        </p>
+        <FormMessage
+          success={message?.ok ? message.text : null}
+          error={message?.ok === false ? message.text : null}
+        />
       </div>
     </form>
   );

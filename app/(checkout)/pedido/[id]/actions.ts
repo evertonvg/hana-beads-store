@@ -3,13 +3,12 @@
 import { getData } from "@/lib/data";
 import type { Order } from "@/lib/data/types";
 import { getOrderViewer } from "@/lib/order-viewer";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 export type PixRenewal =
   { status: "ok"; expiresAt: string; serverNow: number } | { status: "error"; message: string };
 
 export type SwitchResult = { status: "ok" } | { status: "error"; message: string };
-
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
 
 /** The order if the caller owns it and it still waits for payment; null otherwise. */
 async function ownedOpenOrder(orderId: unknown): Promise<Order | null> {

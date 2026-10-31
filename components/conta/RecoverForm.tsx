@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { recoverAction } from "@/app/(conta)/actions";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { TextInput } from "@/components/ui/TextInput";
@@ -58,9 +59,7 @@ export function RecoverForm({ onSent, onBack }: Props) {
       <Field label="E-mail cadastrado" plainLabel error={errors.email?.message}>
         <TextInput type="email" autoComplete="email" className={authInput} {...register("email")} />
       </Field>
-      <p role="alert" className="text-sm text-danger-text empty:hidden">
-        {formError}
-      </p>
+      <FormMessage error={formError} />
       <Button
         type="submit"
         variant="primary"

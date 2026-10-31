@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { loginAction, type AuthResult } from "@/app/(conta)/actions";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Field } from "@/components/ui/Field";
@@ -13,8 +14,7 @@ import { cn } from "@/lib/cn";
 import { loginSchema, type LoginInput } from "@/lib/validation/auth";
 import { authCard, authInput, textButton } from "./styles";
 import { useFinishAuth } from "./use-finish-auth";
-
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 type Props = { next: string; onForgot: () => void };
 
@@ -102,9 +102,7 @@ export function LoginForm({ next, onForgot }: Props) {
           Esqueci minha senha
         </button>
       </div>
-      <p role="alert" className="text-sm text-danger-text empty:hidden">
-        {formError}
-      </p>
+      <FormMessage error={formError} />
       <Button
         type="submit"
         variant="primary"

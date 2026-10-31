@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import type { z } from "zod";
 import { signupAction, type AuthResult } from "@/app/(conta)/actions";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Field } from "@/components/ui/Field";
@@ -17,10 +18,10 @@ import { PasswordRules } from "./PasswordRules";
 import { SocialButtons } from "./SocialButtons";
 import { authCard, authInput, inlineLink } from "./styles";
 import { useFinishAuth } from "./use-finish-auth";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 type SignupFormInput = z.input<typeof signupSchema>;
 
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
 const FIELDS = ["name", "email", "phone", "password", "confirmPassword", "acceptTerms"] as const;
 
 type Props = { next: string; authApple: boolean; className?: string };
@@ -206,9 +207,7 @@ export function SignupForm({ next, authApple, className }: Props) {
         </p>
       </div>
 
-      <p role="alert" className="text-sm text-danger-text empty:hidden">
-        {formError}
-      </p>
+      <FormMessage error={formError} />
       <Button
         type="submit"
         variant="primary"

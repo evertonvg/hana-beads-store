@@ -117,6 +117,25 @@ describe("CopyButton", () => {
     expect(screen.getByRole("button", { name: "COPIAR" })).toBeInTheDocument();
   });
 
+  it("announces the copy in a persistent status region, not only in the button label", async () => {
+    vi.useFakeTimers();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    render(<CopyButton value="000201" />);
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("");
+    await act(() => {
+      screen.getByRole("button", { name: "COPIAR" }).click();
+      return Promise.resolve();
+    });
+    expect(screen.getByRole("status")).toBe(status);
+    expect(status).toHaveTextContent("Copiado para a área de transferência.");
+    act(() => {
+      vi.advanceTimersByTime(2500);
+    });
+    expect(status).toHaveTextContent("");
+  });
+
   it("still swaps the label when the clipboard fails", async () => {
     vi.useFakeTimers();
     const writeText = vi.fn().mockRejectedValue(new Error("denied"));

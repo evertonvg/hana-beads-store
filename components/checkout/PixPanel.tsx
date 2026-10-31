@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { renewPixAction } from "@/app/(checkout)/pedido/[id]/actions";
 import { Button } from "@/components/ui/Button";
 import { focusRing } from "@/components/ui/focus";
+import { CopyButton } from "@/components/ui/CopyButton";
 import { Icon } from "@/components/ui/Icon";
 import { PixQr } from "@/components/ui/PixQr";
 import { cn } from "@/lib/cn";
@@ -14,7 +15,6 @@ import { pixRemaining } from "@/lib/pix-countdown";
 import { OrderAside } from "./OrderAside";
 import { PaymentWaitNote } from "./PaymentWaitNote";
 import { moneyLabel } from "./payment-format";
-import { useCopy } from "./useCopy";
 import { usePaymentStatus } from "./usePaymentStatus";
 import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
@@ -43,7 +43,6 @@ export function PixPanel({ order, payment: initialPayment, serverNow }: Props) {
   const [checked, setChecked] = useState(false);
   const [checking, setChecking] = useState(false);
   const status = usePaymentStatus(order.id, order.status);
-  const copy = useCopy(payment.copyPaste);
 
   useEffect(() => {
     skew.current = serverNow - Date.now();
@@ -171,32 +170,22 @@ export function PixPanel({ order, payment: initialPayment, serverNow }: Props) {
                         focusRing,
                       )}
                     />
-                    <button
-                      type="button"
-                      onClick={copy.copy}
-                      className={cn(
-                        "min-h-[52px] min-w-[120px] cursor-pointer px-4 font-pixel text-[9px] text-bg",
-                        copy.copied ? "bg-green" : "bg-text",
-                        focusRing,
-                      )}
-                    >
-                      {copy.copied ? "COPIADO ✓" : "COPIAR"}
-                    </button>
+                    <CopyButton
+                      value={payment.copyPaste}
+                      className="min-h-[52px] min-w-[120px] cursor-pointer bg-text px-4 font-pixel text-[9px] text-bg"
+                      copiedClassName="bg-green"
+                    />
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={copy.copy}
-                  className={cn(
-                    "flex min-h-[60px] cursor-pointer items-center justify-center gap-2.5 font-pixel text-[11px] text-bg shadow-hard md:hidden",
-                    copy.copied ? "bg-green" : "bg-accent",
-                    focusRing,
-                  )}
-                >
-                  <Icon name="copy" size={18} />
-                  {copy.copied ? "CÓDIGO COPIADO ✓" : "COPIAR CÓDIGO PIX"}
-                </button>
+                <CopyButton
+                  value={payment.copyPaste}
+                  label="COPIAR CÓDIGO PIX"
+                  copiedLabel="CÓDIGO COPIADO ✓"
+                  icon={<Icon name="copy" size={18} />}
+                  className="flex min-h-[60px] cursor-pointer items-center justify-center gap-2.5 bg-accent font-pixel text-[11px] text-bg shadow-hard md:hidden"
+                  copiedClassName="bg-green"
+                />
                 <p className="m-0 text-center text-[13px] leading-relaxed text-text-muted md:hidden">
                   Copie o código, abra o app do seu banco e escolha{" "}
                   <strong>Pix copia e cola</strong>.

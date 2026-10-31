@@ -5,7 +5,7 @@ import { sanitizeCart } from "@/lib/cart/merge";
 import { planCartSync } from "@/lib/cart/sync";
 import type { CartData } from "@/lib/cart/types";
 import { getData } from "@/lib/data";
-import type { AuthProvider } from "@/lib/data/ports";
+import { parseProvider } from "@/lib/auth/providers";
 import { publicEnv } from "@/lib/env";
 import { createSession, destroySession, getSession } from "@/lib/session";
 import {
@@ -14,12 +14,11 @@ import {
   recoverSchema,
   signupSchema,
 } from "@/lib/validation/auth";
-import { fieldErrorsFrom, type FormState } from "@/lib/validation/form-state";
+import { fieldErrorsFrom, type FormState, GENERIC_ERROR } from "@/lib/validation/form-state";
 
 /** `redirectTo` is already sanitized: the client may navigate to it as is. */
 export type AuthResult = FormState & { redirectTo?: string };
 
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
 const BAD_CREDENTIALS = "E-mail ou senha incorretos.";
 
 /** Same text for existing and unknown e-mails: never reveal who has an account. */
@@ -81,12 +80,10 @@ export async function signupAction(input: unknown): Promise<AuthResult> {
   }
 }
 
-const PROVIDERS: readonly AuthProvider[] = ["google", "facebook", "apple"];
-
 /** Social sign-in. The mock logs every provider in as the "ana" fixture. */
 export async function socialAction(provider: string, next: unknown): Promise<AuthResult> {
-  const allowed = PROVIDERS.find((p) => p === provider);
-  if (!allowed || (allowed === "apple" && !publicEnv.authApple)) {
+  const allowed = parseProvider(provider, publicEnv.authApple);
+  if (!allowed) {
     return { status: "error", message: GENERIC_ERROR };
   }
   try {

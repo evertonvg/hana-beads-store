@@ -10,6 +10,7 @@ import { AddressFields } from "@/components/address/AddressFields";
 import { PasswordRules } from "@/components/conta/PasswordRules";
 import { inlineLink } from "@/components/conta/styles";
 import { useFinishAuth } from "@/components/conta/use-finish-auth";
+import { FormMessage } from "@/components/ui/FormMessage";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Field } from "@/components/ui/Field";
@@ -35,6 +36,7 @@ import { SummaryAside, SummaryDetails } from "./CheckoutSummary";
 import { PaymentPicker } from "./PaymentPicker";
 import { checkoutInput, legend, section } from "./styles";
 import { useCheckoutQuotes } from "./use-checkout-lookups";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 /** What the server knows about the signed-in user, used to pre-fill the form. */
 export type CheckoutInitial = {
@@ -45,8 +47,6 @@ export type CheckoutInitial = {
 };
 
 type Props = { initial: CheckoutInitial; lines: CartLine[]; priced: PricedLine[] };
-
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
 
 /** Order in which the first invalid field gets the focus. */
 const FOCUS_ORDER = [
@@ -422,9 +422,7 @@ export function CheckoutForm({ initial, lines, priced }: Props) {
             </p>
           </div>
 
-          <p role="alert" className="m-0 text-sm text-danger-text empty:hidden">
-            {formError}
-          </p>
+          <FormMessage error={formError} />
           <Button
             type="submit"
             variant="primary"
