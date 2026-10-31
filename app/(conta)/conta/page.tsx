@@ -18,6 +18,7 @@ import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
 import type { ConsentRecord } from "@/lib/data/ports";
 import { publicEnv } from "@/lib/env";
+import { toClientOrder } from "@/lib/order-view-model";
 import { getSession } from "@/lib/session";
 import { panelTitle } from "@/components/conta/styles";
 
@@ -72,7 +73,9 @@ async function Loader({ searchParams }: { searchParams: PageProps<"/conta">["sea
     wants("pedidos") || tab === null ? orders.listForUser(user.id) : [],
     wants("privacidade") ? account.consents(user.id) : [],
   ]);
-  const newestFirst = recent.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const newestFirst = recent
+    .map(toClientOrder)
+    .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   return (
     <Container className="flex flex-col gap-6 py-6 md:gap-9 md:pt-12 md:pb-24">

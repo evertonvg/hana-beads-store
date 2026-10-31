@@ -1,5 +1,8 @@
 import type { ZodError } from "zod";
 
+/** Shown when a server action throws or a request fails; one wording for every form. */
+export const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
+
 /** Result shape shared by every server action that backs a form. */
 export type FormState = {
   status: "idle" | "ok" | "error";

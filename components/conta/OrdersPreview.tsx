@@ -2,18 +2,18 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
-import type { Order } from "@/lib/data/types";
+import type { ClientOrder } from "@/lib/order-view-model";
 import { formatDate, formatOrderNumber } from "@/lib/format";
 import { orderStatusView } from "@/lib/orders-view";
 import { inlineLink, panelTitle } from "./styles";
 
-const itemsText = (order: Order) => {
+const itemsText = (order: ClientOrder) => {
   const n = order.items.reduce((sum, i) => sum + i.qty, 0);
   return `${n} ${n === 1 ? "item" : "itens"}`;
 };
 
 /** "ÚLTIMOS PEDIDOS": the two newest orders, with a link to the full list. */
-export function OrdersPreview({ orders }: { orders: Order[] }) {
+export function OrdersPreview({ orders }: { orders: ClientOrder[] }) {
   return (
     <div className="flex flex-col gap-[22px]">
       <div className="flex flex-wrap items-center justify-between gap-3">

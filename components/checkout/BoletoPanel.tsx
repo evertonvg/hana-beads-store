@@ -3,7 +3,8 @@
 import { Button } from "@/components/ui/Button";
 import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
-import type { BoletoPayment, Order } from "@/lib/data/types";
+import type { BoletoPayment } from "@/lib/data/types";
+import type { PaymentViewOrder } from "@/lib/order-view-model";
 import { formatDate, formatOrderNumber } from "@/lib/format";
 import { PaymentWaitNote } from "./PaymentWaitNote";
 import { moneyLabel } from "./payment-format";
@@ -12,7 +13,7 @@ import { useCopy } from "./useCopy";
 import { usePaymentStatus } from "./usePaymentStatus";
 
 type Props = {
-  order: Pick<Order, "id" | "number" | "totalCents" | "status">;
+  order: Pick<PaymentViewOrder, "id" | "number" | "totalCents" | "status">;
   payment: BoletoPayment;
 };
 

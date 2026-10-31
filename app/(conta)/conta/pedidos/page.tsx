@@ -12,6 +12,7 @@ import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
 import { clampQuery, filterCounts, filterOrders, loadOrdersQuery } from "@/lib/orders-view";
+import { toClientOrder } from "@/lib/order-view-model";
 import { getSession } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -64,7 +65,7 @@ async function Loader({
   }
 
   const { orders, catalog } = getData();
-  const all = await orders.listForUser(user.id);
+  const all = (await orders.listForUser(user.id)).map(toClientOrder);
   const shown = filterOrders(all, query.filtro, q);
   const products = await catalog.byIds([
     ...new Set(all.flatMap((o) => o.items.flatMap((i) => (i.productId ? [i.productId] : [])))),

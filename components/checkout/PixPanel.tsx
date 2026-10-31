@@ -7,7 +7,8 @@ import { focusRing } from "@/components/ui/focus";
 import { Icon } from "@/components/ui/Icon";
 import { PixQr } from "@/components/ui/PixQr";
 import { cn } from "@/lib/cn";
-import type { Order, PixPayment } from "@/lib/data/types";
+import type { PixPayment } from "@/lib/data/types";
+import type { PaymentViewOrder } from "@/lib/order-view-model";
 import { formatOrderNumber } from "@/lib/format";
 import { pixRemaining } from "@/lib/pix-countdown";
 import { OrderAside } from "./OrderAside";
@@ -15,9 +16,10 @@ import { PaymentWaitNote } from "./PaymentWaitNote";
 import { moneyLabel } from "./payment-format";
 import { useCopy } from "./useCopy";
 import { usePaymentStatus } from "./usePaymentStatus";
+import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 type Props = {
-  order: Pick<Order, "id" | "number" | "items" | "totalCents" | "status">;
+  order: PaymentViewOrder;
   payment: PixPayment;
   /** Server time (ms) when the page was rendered: the countdown follows the server clock. */
   serverNow: number;
@@ -28,8 +30,6 @@ const STEPS_DESKTOP = [
   "Escaneie o QR code ou use o Pix copia e cola.",
   "Confira o valor e o recebedor: Pixel Perfect Artesanato.",
 ];
-
-const GENERIC_ERROR = "Não foi possível agora. Tente de novo.";
 
 /** Pix payment screen (Pix.dc.html on desktop, CelPix.dc.html on mobile). */
 export function PixPanel({ order, payment: initialPayment, serverNow }: Props) {

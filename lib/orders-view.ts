@@ -1,6 +1,7 @@
 import { createLoader, parseAsString, parseAsStringLiteral } from "nuqs/server";
 import { contactLabel, getContact, type ContactChannel } from "@/lib/contact";
-import type { Order, OrderStatus, PaymentMethod } from "@/lib/data/types";
+import type { OrderStatus, PaymentMethod } from "@/lib/data/types";
+import type { ClientOrder } from "@/lib/order-view-model";
 
 export const ORDER_FILTERS = ["todos", "andamento", "entregues", "cancelados"] as const;
 export type OrderFilter = (typeof ORDER_FILTERS)[number];
@@ -95,7 +96,7 @@ export type OrderStatusView = {
  * (the shop when the order has no known product, e.g. a custom order).
  */
 export function orderStatusView(
-  o: Order,
+  o: ClientOrder,
   channel: ContactChannel = getContact(),
   productSlugs: Record<string, string> = {},
 ): OrderStatusView {
@@ -131,12 +132,8 @@ export function orderStatusView(
 
 const plain = (s: string) => s.normalize("NFD").replaceAll(/\p{M}/gu, "").toLowerCase();
 
-export function isOrderFilter(v: unknown): v is OrderFilter {
-  return ORDER_FILTERS.includes(v as OrderFilter);
-}
-
 /** Orders of one filter whose number or item names contain `q` (accents and case ignored). */
-export function filterOrders(orders: Order[], filter: OrderFilter, q: string): Order[] {
+export function filterOrders(orders: ClientOrder[], filter: OrderFilter, q: string): ClientOrder[] {
   const needle = plain(q.trim().replace(/^#/, ""));
   return orders.filter((o) => {
     if (filter !== "todos" && STATUS[o.status].group !== filter) return false;
@@ -146,7 +143,7 @@ export function filterOrders(orders: Order[], filter: OrderFilter, q: string): O
 }
 
 /** How many orders each filter shows (ignoring the search). */
-export function filterCounts(orders: Order[]): Record<OrderFilter, number> {
+export function filterCounts(orders: ClientOrder[]): Record<OrderFilter, number> {
   return {
     todos: orders.length,
     andamento: filterOrders(orders, "andamento", "").length,
@@ -158,7 +155,7 @@ export function filterCounts(orders: Order[]): Record<OrderFilter, number> {
 const METHOD: Record<PaymentMethod, string> = { pix: "Pix", cartao: "Cartão", boleto: "Boleto" };
 
 /** "Pix · aprovado": the payment line of the order details. */
-export function paymentText(o: Order): string {
+export function paymentText(o: ClientOrder): string {
   if (o.status === "aguardando_aprovacao") return "Aguardando aprovação do desenho";
   const method = METHOD[o.paymentMethod];
   if (o.status === "aguardando_pagamento") return `${method} · aguardando pagamento`;
@@ -169,14 +166,14 @@ export function paymentText(o: Order): string {
 }
 
 /** "2 itens", or the custom-order wording. */
-export function itemsSummary(o: Order): string {
+export function itemsSummary(o: ClientOrder): string {
   if (o.isCustom) return "Encomenda personalizada";
   const n = o.items.reduce((sum, i) => sum + i.qty, 0);
   return `${n} ${n === 1 ? "item" : "itens"}`;
 }
 
 /** Shorter summary for the phone: "Garota Pixel + 1". */
-export function itemsSummaryShort(o: Order): string {
+export function itemsSummaryShort(o: ClientOrder): string {
   if (o.isCustom) return "Encomenda personalizada";
   const [first] = o.items;
   if (!first) return itemsSummary(o);
@@ -184,7 +181,7 @@ export function itemsSummaryShort(o: Order): string {
 }
 
 /** The hint line of a card. Dates the design leaves open stay placeholders. */
-export function orderHint(o: Order, channel: ContactChannel = getContact()): string {
+export function orderHint(o: ClientOrder, channel: ContactChannel = getContact()): string {
   switch (o.status) {
     case "aguardando_aprovacao":
       return `Enviamos o desenho no seu ${channel.name} para você aprovar.`;

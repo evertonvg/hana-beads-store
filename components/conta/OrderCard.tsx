@@ -9,7 +9,7 @@ import { focusRing } from "@/components/ui/focus";
 import { OrderProgress } from "@/components/ui/OrderProgress";
 import { cn } from "@/lib/cn";
 import { getContact } from "@/lib/contact";
-import type { Order } from "@/lib/data/types";
+import type { ClientOrder } from "@/lib/order-view-model";
 import { formatDate, formatOrderNumber, formatPrice } from "@/lib/format";
 import {
   itemsSummary,
@@ -20,7 +20,7 @@ import {
 } from "@/lib/orders-view";
 
 type Props = {
-  order: Order;
+  order: ClientOrder;
   /** Product id -> slug, for "buy again". */
   productSlugs: Record<string, string>;
   defaultOpen?: boolean;
@@ -37,7 +37,7 @@ const detailLink =
 const money = (cents: number | null, placeholder = "R$ [VALOR]") =>
   cents === null ? placeholder : formatPrice(cents);
 
-function Photos({ order, size }: { order: Order; size: 48 | 64 }) {
+function Photos({ order, size }: { order: ClientOrder; size: 48 | 64 }) {
   const photos = order.items.flatMap((i) => (i.image ? [i.image] : []));
   const box = size === 64 ? "size-16" : "size-12";
   return (

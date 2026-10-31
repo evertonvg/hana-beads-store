@@ -4,6 +4,7 @@ import { BoletoPanel } from "@/components/checkout/BoletoPanel";
 import { DeclinedPanel } from "@/components/checkout/DeclinedPanel";
 import { PixPanel } from "@/components/checkout/PixPanel";
 import { getData } from "@/lib/data";
+import { toPaymentView } from "@/lib/order-view-model";
 import { getOrderViewer } from "@/lib/order-viewer";
 import { isPaidStatus } from "@/lib/order-status";
 import { currentTimeMs } from "@/lib/pix-countdown";
@@ -33,9 +34,10 @@ export default async function PagamentoPage({ params }: PageProps<"/pedido/[id]/
   if (!payment) redirect("/checkout");
 
   if (payment.kind === "pix") {
-    return <PixPanel order={order} payment={payment} serverNow={currentTimeMs()} />;
+    return <PixPanel order={toPaymentView(order)} payment={payment} serverNow={currentTimeMs()} />;
   }
-  if (payment.kind === "boleto") return <BoletoPanel order={order} payment={payment} />;
+  if (payment.kind === "boleto")
+    return <BoletoPanel order={toPaymentView(order)} payment={payment} />;
   if (payment.result === "recusado") return <DeclinedPanel orderId={order.id} />;
   // An approved card makes the order paid, which redirected above.
   notFound();

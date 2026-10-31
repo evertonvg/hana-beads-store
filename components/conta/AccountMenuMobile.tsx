@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/Badge";
 import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
 import { getContact } from "@/lib/contact";
-import type { Order } from "@/lib/data/types";
+import type { ClientOrder } from "@/lib/order-view-model";
 import { formatOrderNumber } from "@/lib/format";
 import { orderStatusView } from "@/lib/orders-view";
 import { LogoutButton } from "./LogoutButton";
@@ -18,7 +18,7 @@ type Item = {
   color: string;
 };
 
-type Props = { lastOrder: Order | null; addressCount: number };
+type Props = { lastOrder: ClientOrder | null; addressCount: number };
 
 function items(addressCount: number): Item[] {
   const contact = getContact();
