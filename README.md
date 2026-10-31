@@ -49,7 +49,7 @@ npx playwright install chromium
 
 - `.npmrc` usa `min-release-age=14`: só se instalam versões publicadas há 14 dias ou mais (proteção de supply chain) e `save-exact=true`.
 - Um aviso de segurança tem prioridade sobre essa regra: fixe a primeira versão corrigida, instale uma única vez com `npm install --min-release-age=N` (N = idade em dias dessa versão; só na linha de comando, o `.npmrc` não muda) e registre o motivo no commit.
-- Verificação: `npm audit --omit=dev` deve terminar sem vulnerabilidades.
+- Verificação: `npm audit --omit=dev` ainda aponta `fast-uri` (via `@hookform/resolvers` → `ajv`); o item está em `docs/PENDENCIAS.md` §4 e deve ser resolvido antes do lançamento.
 
 ## Lighthouse (mobile)
 

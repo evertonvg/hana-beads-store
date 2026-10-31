@@ -15,13 +15,13 @@ Este documento é o ponto de partida do plano de backend.
 | CNPJ e razão social               | `[razão social]` e `[00.000.000/0000-00]` no rodapé, privacidade e termos                                | Dados da empresa                                                 |
 | Encarregado de dados (LGPD)       | `[privacidade@seudominio.com.br]` na política de privacidade                                             | Nome e e-mail do encarregado                                     |
 | Usuário do Instagram              | `[usuario]` quando `NEXT_PUBLIC_INSTAGRAM_USER` está vazia                                               | Usuário real (e número do WhatsApp, se o canal mudar)            |
-| Texto "Sobre"                     | Não existe página nem seção "Sobre"                                                                      | Texto da marca, se o dono quiser a página                        |
+| Texto "Sobre"                     | A home tem a seção `#sobre` com o placeholder `[texto "Sobre"]`; não existe página própria               | Texto da marca (e decidir se vira página)                        |
 | Fotos extras e medidas            | Produtos ilustrativos usam arte em pixels (`images: []`); medidas são placeholders                       | Fotos reais (galeria) e medidas de cada item                     |
 | Parcelas                          | `[parcelas]` na opção CARTÃO do checkout                                                                 | Regra de parcelamento (número de parcelas, juros)                |
 | Limite de fotos da troca          | `MAX_RETURN_PHOTO_BYTES` = 5 MB por foto, até 4 fotos (`lib/validation/return.ts`)                       | Confirmar com o dono (uma constante)                             |
 | Limite do corpo da Server Action  | `serverActions.bodySizeLimit: "21mb"` em `next.config.ts` (4 x 5 MB mais folga para os campos)           | Mudar junto com o limite de fotos                                |
 | Faixa de preço da loja            | O filtro de faixa de preço está oculto (não há preços)                                                   | Reativar quando existirem preços                                 |
-| Favoritos sem página              | O coração grava o favorito, mas não existe tela "Favoritos"                                              | Decidir se a página entra (`EngagementPort.favorites` já existe) |
+| Favoritos sem página              | O coração grava o favorito, mas não existe tela "Favoritos" (o item fica oculto no menu de `/conta`)     | Decidir se a página entra (`EngagementPort.favorites` já existe) |
 | Login com Apple                   | Botão atrás de `NEXT_PUBLIC_AUTH_APPLE` (padrão `false`)                                                 | Conta Apple Developer e configuração no Supabase                 |
 | Logo                              | O cabeçalho usa a grade de pixels provisória (`LOGO_ROWS`); o conceito está em `docs/design/referencia/` | Arte final da logo                                               |
 | Revisão jurídica                  | Privacidade, Termos e Trocas são rascunhos (`content/legal/*.mdx`, comentários `RASCUNHO`)               | Advogado revisar antes de publicar (ver lista abaixo)            |
@@ -30,11 +30,20 @@ Este documento é o ponto de partida do plano de backend.
 
 Pontos que a revisão jurídica precisa cobrir:
 
-- rótulo do consentimento da newsletter (texto curto, com link para `/privacidade`) e a versão `MARKETING_CONSENT_VERSION`;
+- rótulo do consentimento da newsletter (texto curto, com link para `/privacidade`) e sua versão `NEWSLETTER_CONSENT_VERSION`;
 - a política de privacidade deve listar e-mail e registro de consentimento da newsletter;
 - aviso de termos do checkout ("Salvar meus dados e criar conta"), que cria a conta sem caixa de aceite explícita;
 - AVISE-ME de usuário logado: o clique conta como consentimento afirmativo, com aviso de uma linha e link para a privacidade (sem caixa marcável);
 - textos de Trocas e devoluções, incluindo os prazos.
+
+Lacunas entre o que a política de privacidade lista e o que o código coleta hoje (o texto jurídico não foi alterado; o advogado precisa reconciliar):
+
+- o checkout sempre exige CPF, enquanto a política diz "apenas quando necessário";
+- e-mail e consentimento da newsletter (ver acima);
+- e-mails de visitantes no AVISE-ME de estoque (sem conta);
+- fotos e descrições dos pedidos de troca e devolução;
+- carrinho salvo no servidor para quem tem conta;
+- cookie `pp_guest_orders` (pedidos de convidado) e o carrinho em `localStorage` (`pp_cart_v1`).
 
 ## 2. Decisões de design para o dono
 
@@ -53,7 +62,12 @@ Pontos que a revisão jurídica precisa cobrir:
 - **`checkoutToken` é segredo.** Hoje ele funciona como chave ao portador para ver o pedido de um convidado. Tratar como segredo (não logar, não pôr em URL) e, no adaptador real, exigir também que o `userId` confira quando houver sessão.
 - **Contrato do `ReturnsPort`.** `create` devolve `{ protocol } | CreateReturnError` (união tipada, não lança exceção). O adaptador real precisa seguir isso: erros `pedido_nao_encontrado`, `pedido_indisponivel` e `fora_do_prazo`; protocolo no formato `T-0001`. A mensagem de `pedido_indisponivel` é neutra e serve mal para pedidos cancelados ou reembolsados.
 - **Prazo de 90 dias para defeito.** Só o prazo de arrependimento (7 dias após a entrega) é verificado. O prazo de 90 dias para vício aparente não é aplicado em lugar nenhum.
-- **Exclusão de conta (`deleteAccount`).** Apaga o usuário, mas deixa a inscrição da newsletter (por e-mail), os pedidos de redefinição de senha e o endereço de entrega dentro dos pedidos sem anonimizar. Definir a retenção (pedidos precisam ser guardados por obrigação fiscal; o resto deve ser apagado ou anonimizado) e refletir na política de privacidade.
+- **Exportação e exclusão de conta (`exportData`, `deleteAccount`).** O mock exporta (tipo `AccountExport`) e apaga perfil, endereços, consentimentos, conexões, favoritos, carrinho salvo, pedidos de troca, avisos de estoque (por usuário e pelo e-mail do perfil) e a inscrição da newsletter (pelo e-mail). Pedidos ficam anonimizados (nome, e-mail, telefone e CPF viram `[removido]`), mas o endereço de entrega e os pedidos de redefinição de senha seguem sem anonimizar. O adaptador real deve cobrir as mesmas coleções nos dois métodos. Definir a retenção (pedidos precisam ser guardados por obrigação fiscal; o resto deve ser apagado ou anonimizado) e refletir na política de privacidade.
+- **E-mail de marketing tem duas fontes de verdade.** O formulário da home grava `store.newsletter` por e-mail, e `/conta` grava consentimentos `email_marketing` por usuário. Decisão do backend: um único registro de consentimento de marketing, por usuário ou por e-mail, com data/hora e versão do texto em cada registro de newsletter, e o interruptor de `/conta` refletindo e revogando a inscrição da newsletter.
+- **Seals do `iron-session` não são revogados.** O cookie é sem estado: sair da conta ou trocar a senha não invalida um seal já emitido (vale até 30 dias). O backend precisa de versão de sessão ou lista de revogação.
+- **`pp_guest_orders` sobrevive ao logout.** Em dispositivo compartilhado, o cookie com os pedidos de convidado continua legível depois de sair. Limpar no logout e/ou expirar mais cedo.
+- **Upload de fotos da troca.** `bodySizeLimit: "21mb"` vale para todas as Server Actions. O backend deve usar upload direto assinado (Supabase Storage) e restaurar o limite padrão.
+- **Analytics (Umami).** O script do Umami precisa de `data-website-id`, que `ConsentScripts` não consegue definir (só recebe `NEXT_PUBLIC_ANALYTICS_SRC`). As variáveis `UMAMI_*` do `docker-compose.yml` (`UMAMI_DB_USER`, `UMAMI_DB_PASSWORD`, `UMAMI_APP_SECRET`) também não estão no `.env.example`.
 - **Usuário só com provedor social não consegue excluir a conta.** `deleteAccount` exige a senha, e quem entrou só com Google/Facebook tem senha vazia. Também não consegue definir senha, embora o erro de `disconnect` diga "Crie uma senha". O adaptador real precisa de um caminho (reautenticação pelo provedor ou criação de senha).
 - **Cache das páginas de produto.** Elas são pré-renderizadas; estoque e descrição ficam congelados até revalidar. O adaptador real precisa de tags de revalidação (`revalidateTag`) ao mudar estoque ou descrição.
 - **Cartão.** O servidor nunca recebe número nem CVV, só um token do gateway (`CardInput`). Manter: tokenização no navegador (Mercado Pago).
@@ -65,7 +79,8 @@ Pontos que a revisão jurídica precisa cobrir:
 - **`npm audit`:** `fast-uri` 3.1.8 (moderado, 4 GHSA) entra via `@hookform/resolvers` → `ajv`. Não vem do MDX. Rodar `npm audit fix` antes do lançamento, respeitando `min-release-age=14`.
 - Os testes visuais usam tolerância de 1% (`maxDiffPixelRatio`), que esconde mudanças pequenas de glifo; `fonte-acentos` merece tolerância menor.
 - `tests/e2e/support/hydration.ts` depende da chave interna `__reactProps` do React.
-- `MARKETING_CONSENT_VERSION` (`2026-10-28`) precisa ser incrementada à mão quando o texto de consentimento mudar.
+- Versões de consentimento (todas `2026-10-28`) precisam ser incrementadas à mão quando o texto correspondente mudar: `AUTH_CONSENT_VERSION` (termos e privacidade no cadastro, `lib/validation/auth.ts`), `CHECKOUT_CONSENT_VERSION` (aviso do checkout, `lib/validation/checkout.ts`), `NEWSLETTER_CONSENT_VERSION` (caixa da newsletter, `lib/validation/newsletter.ts`) e `MARKETING_CONSENT_VERSION` (interruptor de e-mail em `/conta` e caixa de marketing do cadastro, `lib/validation/account.ts`).
+- `DATA_SOURCE` é obrigatória (sem padrão): ela liga as rotas `/api/__mock__/*`. O `.env.example`, o `webServer` do Playwright e o Vitest já a definem; todo deploy precisa defini-la.
 - Rótulos de 7 px do TabBar seguem o design; o contraste passa em AA (texto `accent` sobre `surface`, cerca de 6:1), mas o tamanho é pequeno.
 
 ## 5. Ports a implementar no plano de backend
@@ -219,6 +234,28 @@ export type ConsentRecord = {
 
 export type Connection = { provider: AuthProvider; email: string | null };
 
+/** Everything stored about one user (LGPD art. 18, portability). Also matched by profile e-mail. */
+export type AccountExport = {
+  exportedAt: string;
+  profile: { id: string; name: string; email: string; phone: string; cpf: string | null };
+  addresses: Address[];
+  consents: ConsentRecord[];
+  connections: Connection[];
+  favorites: string[];
+  orders: Order[];
+  returns: {
+    protocol: string;
+    orderId: string;
+    reason: string;
+    description: string;
+    preference: string;
+    photos: { name: string; type: string; size: number }[];
+  }[];
+  stockAlerts: { email: string; productId: string; consentedAt: string }[];
+  newsletter: { email: string; consentVersion: string } | null;
+  savedCart: CartData | null;
+};
+
 /** Everything the signed-in user manages in "Minha conta". Every call is scoped to `userId`. */
 export interface AccountPort {
   /** null = unknown user. */
@@ -248,8 +285,12 @@ export interface AccountPort {
   connect(userId: string, provider: AuthProvider): Promise<void>;
   /** `ok: false` when it is the last way to sign in (no password and only this provider). */
   disconnect(userId: string, provider: AuthProvider): Promise<{ ok: boolean }>;
-  exportData(userId: string): Promise<Record<string, unknown>>;
-  /** `ok: false` (and nothing deleted) when the password is wrong. */
+  /** null = unknown user. */
+  exportData(userId: string): Promise<AccountExport | null>;
+  /**
+   * `ok: false` (and nothing deleted) when the password is wrong. Besides the account it removes
+   * return requests, stock alerts and the newsletter subscription made with the profile e-mail.
+   */
   deleteAccount(userId: string, password: string): Promise<{ ok: boolean }>;
 }
 
