@@ -1,7 +1,6 @@
 import Image from "next/image";
 import type { Order } from "@/lib/data/types";
-import { formatOrderNumber } from "@/lib/format";
-import { moneyLabel } from "./payment-format";
+import { formatOrderNumber, totalLabel } from "@/lib/format";
 
 type Props = Pick<Order, "items" | "number" | "totalCents">;
 
@@ -35,7 +34,7 @@ export function OrderAside({ items, number, totalCents }: Props) {
       </ul>
       <div className="flex items-center justify-between border-t-[3px] border-dashed border-border pt-3.5">
         <span className="font-pixel text-[11px]">TOTAL</span>
-        <span className="font-pixel text-sm text-yellow">{moneyLabel(totalCents)}</span>
+        <span className="font-pixel text-sm text-yellow">{totalLabel(totalCents)}</span>
       </div>
       <p className="m-0 text-xs leading-relaxed text-text-subtle">
         Se o tempo acabar, o código expira e você pode gerar outro sem perder o carrinho.

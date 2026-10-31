@@ -9,7 +9,7 @@ import { QuantityStepper } from "@/components/ui/QuantityStepper";
 import { cn } from "@/lib/cn";
 import type { PricedLine } from "@/lib/cart/totals";
 import type { Rarity } from "@/lib/data/types";
-import { formatTotal } from "@/lib/format";
+import { priceLabel } from "@/lib/format";
 
 const RARITY_LABEL: Record<Rarity, string | null> = {
   epico: "★★★ ÉPICO",
@@ -77,7 +77,7 @@ export function CartLine({ line, onQty, onRemove }: Props) {
           />
           <div className="flex flex-col items-end gap-2.5 md:min-w-[120px]">
             <span className="font-pixel text-[9px] text-yellow md:text-[11px]">
-              {formatTotal(line.lineCents)}
+              {priceLabel(line.lineCents)}
             </span>
             <button
               type="button"

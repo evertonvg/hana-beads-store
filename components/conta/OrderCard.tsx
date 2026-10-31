@@ -10,7 +10,7 @@ import { OrderProgress } from "@/components/ui/OrderProgress";
 import { cn } from "@/lib/cn";
 import { getContact } from "@/lib/contact";
 import type { ClientOrder } from "@/lib/order-view-model";
-import { formatDate, formatOrderNumber, formatPrice } from "@/lib/format";
+import { formatDate, formatOrderNumber, priceLabel, totalLabel } from "@/lib/format";
 import {
   itemsSummary,
   itemsSummaryShort,
@@ -32,10 +32,6 @@ const actionLink =
   "inline-flex min-h-11 items-center justify-center bg-text px-3 text-center font-pixel text-[9px] text-bg md:text-[8px]";
 const detailLink =
   "inline-flex min-h-11 items-center text-[13px] text-link underline underline-offset-4 hover:text-yellow";
-
-/** Price with the `R$` sign, or the placeholder the design shows while there is no value. */
-const money = (cents: number | null, placeholder = "R$ [VALOR]") =>
-  cents === null ? placeholder : formatPrice(cents);
 
 function Photos({ order, size }: { order: ClientOrder; size: 48 | 64 }) {
   const photos = order.items.flatMap((i) => (i.image ? [i.image] : []));
@@ -117,7 +113,7 @@ export function OrderCard({ order, productSlugs, defaultOpen = false }: Props) {
           <span className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="text-[13px]">{itemsSummaryShort(order)}</span>
             <span className="text-xs text-text-subtle">
-              {formatDate(order.createdAt, "dd/MM")} · {money(order.totalCents)}
+              {formatDate(order.createdAt, "dd/MM")} · {totalLabel(order.totalCents)}
             </span>
           </span>
           <span aria-hidden="true" className="font-pixel text-[10px] text-accent">
@@ -158,7 +154,9 @@ export function OrderCard({ order, productSlugs, defaultOpen = false }: Props) {
           </div>
           <div className="flex flex-col items-end gap-2.5">
             <Badge tone={view.tone}>{view.label}</Badge>
-            <span className="font-pixel text-[11px] text-yellow">{money(order.totalCents)}</span>
+            <span className="font-pixel text-[11px] text-yellow">
+              {totalLabel(order.totalCents)}
+            </span>
           </div>
         </div>
         {view.showProgress ? (
@@ -206,21 +204,18 @@ export function OrderCard({ order, productSlugs, defaultOpen = false }: Props) {
                   {item.name} ×{item.qty}
                 </span>
                 <span className="text-text-muted">
-                  {money(
-                    item.unitPriceCents === null ? null : item.unitPriceCents * item.qty,
-                    "R$ [—]",
-                  )}
+                  {priceLabel(item.unitPriceCents === null ? null : item.unitPriceCents * item.qty)}
                 </span>
               </div>
             ))}
             <dl className="m-0 flex flex-col gap-1.5 border-t-2 border-border-soft pt-2.5 text-[13px] text-text-muted">
               <div className="flex justify-between">
                 <dt>Frete</dt>
-                <dd className="m-0">{money(order.shippingCents, "R$ [—]")}</dd>
+                <dd className="m-0">{totalLabel(order.shippingCents)}</dd>
               </div>
               <div className="flex justify-between font-bold text-text">
                 <dt>Total</dt>
-                <dd className="m-0">{money(order.totalCents)}</dd>
+                <dd className="m-0">{totalLabel(order.totalCents)}</dd>
               </div>
             </dl>
           </section>

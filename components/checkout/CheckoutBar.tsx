@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/Button";
-import { formatTotal } from "@/lib/format";
+import { totalLabel } from "@/lib/format";
 
 type Props = { totalCents: number | null; pending: boolean };
 
@@ -13,7 +13,7 @@ export function CheckoutBar({ totalCents, pending }: Props) {
       <div className="flex flex-col gap-1.5">
         <span className="text-[11px] text-text-subtle">Total</span>
         <span data-testid="checkout-total" className="font-pixel text-[11px] text-yellow">
-          {formatTotal(totalCents)}
+          {totalLabel(totalCents)}
         </span>
       </div>
       <Button

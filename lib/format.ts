@@ -26,16 +26,19 @@ export function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
-/** Formats cents as BRL, or the `[PREÇO]` placeholder when there is no price. */
-export function formatPrice(cents: number | null): string {
-  if (cents === null) return "[PREÇO]";
-  return brl.format(cents / 100).replaceAll(/[\u00a0\u202f]/g, " ");
+/** Formats cents as BRL (`R$ 12,00`). Screens use `priceLabel`/`totalLabel`, which handle null. */
+export function formatPrice(cents: number): string {
+  return brl.format(cents / 100).replaceAll(/[  ]/g, " ");
 }
 
-/** Formats cents as BRL, or the `[VALOR]` placeholder when there is no total. */
-export function formatTotal(cents: number | null): string {
-  if (cents === null) return "[VALOR]";
-  return formatPrice(cents);
+/** Price of an item (card, line): `R$ 12,00`, or the design's `R$ [PREÇO]` placeholder. */
+export function priceLabel(cents: number | null): string {
+  return cents === null ? "R$ [PREÇO]" : formatPrice(cents);
+}
+
+/** Amount of a sum (subtotal, shipping, total): `R$ 12,00`, or the design's `R$ [VALOR]`. */
+export function totalLabel(cents: number | null): string {
+  return cents === null ? "R$ [VALOR]" : formatPrice(cents);
 }
 
 /** Store timezone. Dates are always shown in Brazil, never in the machine or browser timezone. */

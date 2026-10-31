@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 import type { CheckoutDraft } from "@/lib/cart/draft";
 import type { PricedLine } from "@/lib/cart/totals";
 import type { ShippingQuote } from "@/lib/data/ports";
-import { formatPrice, formatTotal } from "@/lib/format";
+import { priceLabel, totalLabel } from "@/lib/format";
 
 type Props = {
   lines: PricedLine[];
@@ -61,7 +61,7 @@ function Items({
           <span className="min-w-0 flex-1 break-words">
             {line.product.name} ×{line.qty}
           </span>
-          <span>{formatPrice(line.lineCents)}</span>
+          <span>{priceLabel(line.lineCents)}</span>
         </li>
       ))}
     </ul>
@@ -83,7 +83,7 @@ export function SummaryDetails({ lines, itemCount, totalCents }: Props) {
           </span>
         </span>
         <span data-testid="checkout-total" className="font-pixel text-[10px] text-yellow">
-          {formatTotal(totalCents)}
+          {totalLabel(totalCents)}
         </span>
       </summary>
       <div className="pt-3.5">
@@ -115,11 +115,11 @@ export function SummaryAside({ lines, subtotalCents, totalCents, shipping, coupo
       </h2>
       <Items lines={lines} size={64} className="gap-3.5 py-2 text-sm" />
       <div className="flex flex-col gap-2.5 border-t-[3px] border-dashed border-border pt-4 text-sm">
-        <Row label="Subtotal" value={formatTotal(subtotalCents)} />
+        <Row label="Subtotal" value={totalLabel(subtotalCents)} />
         <Row
           label="Frete"
           value={
-            shipping ? `${shipping.service} · ${formatTotal(shipping.priceCents)}` : "escolha acima"
+            shipping ? `${shipping.service} · ${totalLabel(shipping.priceCents)}` : "escolha acima"
           }
         />
         {coupon ? (
@@ -128,8 +128,8 @@ export function SummaryAside({ lines, subtotalCents, totalCents, shipping, coupo
             note={`${coupon.code} · ${coupon.label}`}
             value={
               coupon.discountCents === null
-                ? formatTotal(null)
-                : `−${formatTotal(coupon.discountCents)}`
+                ? totalLabel(null)
+                : `−${totalLabel(coupon.discountCents)}`
             }
           />
         ) : null}
@@ -137,7 +137,7 @@ export function SummaryAside({ lines, subtotalCents, totalCents, shipping, coupo
       <div className="flex items-center justify-between">
         <span className="font-pixel text-xs">TOTAL</span>
         <span data-testid="checkout-total" className="font-pixel text-sm text-yellow">
-          {formatTotal(totalCents)}
+          {totalLabel(totalCents)}
         </span>
       </div>
     </aside>

@@ -5,7 +5,7 @@ import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
 import type { Product } from "@/lib/data/types";
-import { formatPrice } from "@/lib/format";
+import { priceLabel } from "@/lib/format";
 
 function Visual({ product }: { product: Product }) {
   const photo = product.images[0];
@@ -60,7 +60,7 @@ export async function CartSuggestions() {
               </span>
               <span className="flex justify-between gap-3 p-4 font-pixel text-[10px] leading-relaxed">
                 <span>{product.name}</span>
-                <span className="text-yellow">{formatPrice(product.priceCents)}</span>
+                <span className="text-yellow">{priceLabel(product.priceCents)}</span>
               </span>
             </Link>
           </li>

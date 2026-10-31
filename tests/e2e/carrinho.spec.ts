@@ -42,7 +42,7 @@ test("mostra as linhas do carrinho e o total como placeholder", async ({ page })
   await expect(items(page).nth(0)).toContainText("★★★ ÉPICO");
   await expect(items(page).nth(0)).toContainText("Argola: mosquetão");
   await expect(items(page).nth(1)).toContainText("Argola: estrela");
-  await expect(total(page)).toHaveText("[VALOR]");
+  await expect(total(page)).toHaveText("R$ [VALOR]");
   await expect(summary(page).getByText("Subtotal", { exact: true }).locator("..")).toContainText(
     "[VALOR]",
   );

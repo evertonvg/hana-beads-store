@@ -137,7 +137,7 @@ test("passa na acessibilidade e tem alvos de toque grandes", async ({ page }) =>
 test("visual", async ({ page }) => {
   await openCheckout(page);
   await expect(page.locator('[data-testid="checkout-total"]:visible').first()).toHaveText(
-    "[VALOR]",
+    "R$ [VALOR]",
   );
   await snap(page, "checkout");
 });

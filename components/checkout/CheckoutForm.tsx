@@ -23,7 +23,7 @@ import { computeTotals, type PricedLine } from "@/lib/cart/totals";
 import type { CartLine } from "@/lib/cart/types";
 import { cn } from "@/lib/cn";
 import type { Address } from "@/lib/data/types";
-import { formatTotal, isValidCep, onlyDigits } from "@/lib/format";
+import { isValidCep, onlyDigits, totalLabel } from "@/lib/format";
 import { mockCardToken } from "@/lib/mock-card-token";
 import {
   checkoutFormSchema,
@@ -337,7 +337,7 @@ export function CheckoutForm({ initial, lines, priced }: Props) {
                       options={quotes.map((q) => ({
                         value: q.id,
                         label: q.service,
-                        note: `${q.carrier} · ${q.days} · ${formatTotal(q.priceCents)}`,
+                        note: `${q.carrier} · ${q.days} · ${totalLabel(q.priceCents)}`,
                       }))}
                     />
                   )}

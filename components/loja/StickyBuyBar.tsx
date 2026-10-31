@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/Button";
 import { unitCents } from "@/lib/cart/price";
-import { formatPrice } from "@/lib/format";
+import { priceLabel } from "@/lib/format";
 import { usePurchase } from "./AddToCartForm";
 
 /** Mobile buy bar, sticky at the end of the page content (the tab bar is hidden here). */
@@ -20,7 +20,7 @@ export function StickyBuyBar() {
       <div className="flex flex-col gap-1.5">
         <span className="text-[11px] text-text-subtle">{qty} un.</span>
         <span className="font-pixel text-[11px] text-yellow">
-          {formatPrice(unitCents(product, ring))}
+          {priceLabel(unitCents(product, ring))}
         </span>
       </div>
       <Button

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
 import type { Product, Rarity } from "@/lib/data/types";
-import { formatPrice } from "@/lib/format";
+import { priceLabel } from "@/lib/format";
 import { FavoriteButton } from "./FavoriteButton";
 import { StockAlertButton } from "./StockAlertButton";
 
@@ -59,7 +59,7 @@ export function ProductCard({ product, favorite, loggedIn }: Props) {
   const href = `/produto/${product.slug}`;
   const price = (
     <span className="font-pixel text-[9px] text-yellow md:text-[11px]">
-      {formatPrice(product.priceCents)}
+      {priceLabel(product.priceCents)}
     </span>
   );
 

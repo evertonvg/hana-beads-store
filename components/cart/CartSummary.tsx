@@ -4,7 +4,7 @@ import { buttonVariants } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import type { CheckoutDraft } from "@/lib/cart/draft";
 import type { ShippingQuote } from "@/lib/data/ports";
-import { formatTotal } from "@/lib/format";
+import { totalLabel } from "@/lib/format";
 
 type Props = {
   subtotalCents: number | null;
@@ -45,13 +45,13 @@ export function CartSummary({ subtotalCents, totalCents, shipping, coupon, child
           RESUMO
         </h2>
         <div className="flex flex-col gap-5">
-          <Row label="Subtotal" value={formatTotal(subtotalCents)} />
+          <Row label="Subtotal" value={totalLabel(subtotalCents)} />
           <div className="flex flex-col gap-5">{children}</div>
           <Row
             label="Frete"
             value={
               shipping
-                ? `${shipping.service} · ${formatTotal(shipping.priceCents)}`
+                ? `${shipping.service} · ${totalLabel(shipping.priceCents)}`
                 : "calcule acima"
             }
           />
@@ -61,8 +61,8 @@ export function CartSummary({ subtotalCents, totalCents, shipping, coupon, child
               note={`${coupon.code} · ${coupon.label}`}
               value={
                 coupon.discountCents === null
-                  ? formatTotal(null)
-                  : `−${formatTotal(coupon.discountCents)}`
+                  ? totalLabel(null)
+                  : `−${totalLabel(coupon.discountCents)}`
               }
             />
           ) : null}
@@ -70,7 +70,7 @@ export function CartSummary({ subtotalCents, totalCents, shipping, coupon, child
         <div className="hidden items-center justify-between border-t-[3px] border-dashed border-border pt-[18px] md:flex">
           <span className="font-pixel text-xs">TOTAL</span>
           <span data-testid="cart-total" className="font-pixel text-sm text-yellow">
-            {formatTotal(totalCents)}
+            {totalLabel(totalCents)}
           </span>
         </div>
         <Link href="/checkout" className={cn(finalizar, "hidden md:inline-flex")}>
@@ -81,7 +81,7 @@ export function CartSummary({ subtotalCents, totalCents, shipping, coupon, child
         <div className="flex flex-col gap-1.5">
           <span className="text-[11px] text-text-subtle">Total</span>
           <span data-testid="cart-total" className="font-pixel text-[11px] text-yellow">
-            {formatTotal(totalCents)}
+            {totalLabel(totalCents)}
           </span>
         </div>
         <Link href="/checkout" className={cn(finalizar, "flex-1 py-5")}>

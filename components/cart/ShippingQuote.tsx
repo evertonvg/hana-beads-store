@@ -8,7 +8,7 @@ import { Field } from "@/components/ui/Field";
 import { MaskedInput } from "@/components/ui/MaskedInput";
 import { PillRadioGroup } from "@/components/ui/PillRadioGroup";
 import type { ShippingQuote } from "@/lib/data/ports";
-import { formatTotal } from "@/lib/format";
+import { totalLabel } from "@/lib/format";
 
 const ERROR_MESSAGE = {
   cep_invalido: "CEP inválido. Confira os 8 números.",
@@ -87,7 +87,7 @@ export function ShippingQuoteBox({ cep, quotes, selectedId, items, onQuoted, onS
           options={quotes.map((q) => ({
             value: q.id,
             label: q.service,
-            note: `${q.carrier} · ${q.days} · ${formatTotal(q.priceCents)}`,
+            note: `${q.carrier} · ${q.days} · ${totalLabel(q.priceCents)}`,
           }))}
         />
       ) : null}

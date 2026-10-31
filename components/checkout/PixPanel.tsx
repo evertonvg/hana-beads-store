@@ -10,11 +10,10 @@ import { PixQr } from "@/components/ui/PixQr";
 import { cn } from "@/lib/cn";
 import type { PixPayment } from "@/lib/data/types";
 import type { PaymentViewOrder } from "@/lib/order-view-model";
-import { formatOrderNumber } from "@/lib/format";
+import { formatOrderNumber, totalLabel } from "@/lib/format";
 import { pixRemaining } from "@/lib/pix-countdown";
 import { OrderAside } from "./OrderAside";
 import { PaymentWaitNote } from "./PaymentWaitNote";
-import { moneyLabel } from "./payment-format";
 import { usePaymentStatus } from "./usePaymentStatus";
 import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
@@ -134,7 +133,7 @@ export function PixPanel({ order, payment: initialPayment, serverNow }: Props) {
               <div className="flex justify-between pt-1 text-[13px] md:hidden">
                 <span>Pedido {formatOrderNumber(order.number)}</span>
                 <span className="font-pixel text-[10px] text-yellow">
-                  {moneyLabel(order.totalCents)}
+                  {totalLabel(order.totalCents)}
                 </span>
               </div>
             </div>

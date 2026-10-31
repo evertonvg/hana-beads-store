@@ -6,9 +6,8 @@ import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
 import type { BoletoPayment } from "@/lib/data/types";
 import type { PaymentViewOrder } from "@/lib/order-view-model";
-import { formatDate, formatOrderNumber } from "@/lib/format";
+import { formatDate, formatOrderNumber, totalLabel } from "@/lib/format";
 import { PaymentWaitNote } from "./PaymentWaitNote";
-import { moneyLabel } from "./payment-format";
 import { SwitchToPixButton } from "./SwitchToPixButton";
 import { usePaymentStatus } from "./usePaymentStatus";
 
@@ -67,7 +66,7 @@ export function BoletoPanel({ order, payment }: Props) {
           </div>
           <div className={fact}>
             <dt className={factLabel}>VALOR</dt>
-            <dd className={cn(factValue, "m-0 text-yellow")}>{moneyLabel(order.totalCents)}</dd>
+            <dd className={cn(factValue, "m-0 text-yellow")}>{totalLabel(order.totalCents)}</dd>
           </div>
         </dl>
 

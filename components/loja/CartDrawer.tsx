@@ -14,7 +14,7 @@ import { unitCents } from "@/lib/cart/price";
 import { computeTotals, type PricedLine } from "@/lib/cart/totals";
 import { lineKey } from "@/lib/cart/types";
 import type { Product, RingOption } from "@/lib/data/types";
-import { formatTotal } from "@/lib/format";
+import { totalLabel } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { RING_NAME } from "./ring";
@@ -123,7 +123,7 @@ export function CartDrawer({ open, onClose, lastAdded }: Props) {
                   Argola: {RING_NAME[line.ring]} · <span>×{line.qty}</span>
                 </span>
               </div>
-              <span className="font-pixel text-[9px] text-yellow">{formatTotal(lineCents)}</span>
+              <span className="font-pixel text-[9px] text-yellow">{totalLabel(lineCents)}</span>
             </li>
           );
         })}
@@ -135,7 +135,7 @@ export function CartDrawer({ open, onClose, lastAdded }: Props) {
             SUBTOTAL · {itemCount} {itemCount === 1 ? "ITEM" : "ITENS"}
           </span>
           <span className="font-pixel text-[11px] text-yellow md:text-xs">
-            {formatTotal(subtotal)}
+            {totalLabel(subtotal)}
           </span>
         </div>
         <Link

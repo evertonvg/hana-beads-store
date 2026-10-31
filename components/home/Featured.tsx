@@ -4,6 +4,7 @@ import { BeadArt } from "@/components/pixel/BeadArt";
 import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
+import { priceLabel } from "@/lib/format";
 import type { Product, Rarity } from "@/lib/data/types";
 
 const RARITY: Record<Rarity, { label: string; bar: number }> = {
@@ -75,8 +76,7 @@ function FeaturedCard({ product }: { product: Product }) {
           </span>
           <span className="mt-auto flex items-center justify-between gap-3">
             <span className="font-pixel text-[10px] text-yellow md:text-[13px]">
-              {/* No real prices yet: the design shows a placeholder. */}
-              R$ [PREÇO]
+              {priceLabel(product.priceCents)}
             </span>
             <span
               aria-hidden="true"

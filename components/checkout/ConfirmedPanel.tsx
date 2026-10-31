@@ -1,9 +1,8 @@
 import { Button } from "@/components/ui/Button";
 import { OrderProgress } from "@/components/ui/OrderProgress";
 import type { Order } from "@/lib/data/types";
-import { formatOrderNumber } from "@/lib/format";
+import { formatOrderNumber, totalLabel } from "@/lib/format";
 import { ClearCartOnce } from "./ClearCartOnce";
-import { moneyLabel } from "./payment-format";
 
 /** Order confirmed, "STAGE CLEAR!" (Sucesso.dc.html). Empties the cart once. */
 export function ConfirmedPanel({ order }: { order: Pick<Order, "id" | "number" | "totalCents"> }) {
@@ -32,7 +31,7 @@ export function ConfirmedPanel({ order }: { order: Pick<Order, "id" | "number" |
           <span>
             PEDIDO <span className="text-yellow">{formatOrderNumber(order.number)}</span>
           </span>
-          <span className="text-text-muted">SCORE: {moneyLabel(order.totalCents)}</span>
+          <span className="text-text-muted">SCORE: {totalLabel(order.totalCents)}</span>
         </div>
         <div className="bg-bg p-3.5">
           <OrderProgress step={1} color="var(--color-accent)" />

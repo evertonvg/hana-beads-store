@@ -6,7 +6,8 @@ import {
   formatOrderNumber,
   formatPhone,
   formatPrice,
-  formatTotal,
+  priceLabel,
+  totalLabel,
   isValidCep,
   isValidCpf,
   isValidPhone,
@@ -16,21 +17,19 @@ import {
 describe("formatPrice", () => {
   it("formats cents as BRL with a normal space", () => {
     expect(formatPrice(1990)).toBe("R$ 19,90");
-    expect(formatPrice(1990)).not.toContain("\u00a0");
-  });
-
-  it("uses the placeholder when there is no price", () => {
-    expect(formatPrice(null)).toBe("[PREÇO]");
+    expect(formatPrice(1990)).not.toContain(" ");
   });
 });
 
-describe("formatTotal", () => {
-  it("formats cents as BRL", () => {
-    expect(formatTotal(1990)).toBe("R$ 19,90");
+describe("priceLabel and totalLabel", () => {
+  it("format the amount as BRL", () => {
+    expect(priceLabel(1990)).toBe("R$ 19,90");
+    expect(totalLabel(1990)).toBe("R$ 19,90");
   });
 
-  it("uses the value placeholder when there is no total", () => {
-    expect(formatTotal(null)).toBe("[VALOR]");
+  it("keep the R$ sign on the design placeholders", () => {
+    expect(priceLabel(null)).toBe("R$ [PREÇO]");
+    expect(totalLabel(null)).toBe("R$ [VALOR]");
   });
 });
 

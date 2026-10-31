@@ -18,7 +18,7 @@ test("barra fixa mostra o total e o botão SAVE GAME", async ({ page }) => {
   await openCheckout(page);
   const bar = page.getByTestId("checkout-bar");
   await expect(bar).toBeVisible();
-  await expect(bar.getByTestId("checkout-total")).toHaveText("[VALOR]");
+  await expect(bar.getByTestId("checkout-total")).toHaveText("R$ [VALOR]");
   const button = bar.getByRole("button", { name: "SAVE GAME" });
   await expect(button).toBeVisible();
   const box = await button.boundingBox();

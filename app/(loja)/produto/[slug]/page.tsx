@@ -14,7 +14,7 @@ import { Accordion } from "@/components/ui/Accordion";
 import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
 import { getData } from "@/lib/data";
-import { formatPrice } from "@/lib/format";
+import { priceLabel } from "@/lib/format";
 import type { ShopQuery } from "@/lib/shop-query";
 import { getSession } from "@/lib/session";
 
@@ -55,7 +55,7 @@ const linkClass = cn(
 /** Product-specific, session-dependent form: streams in, with the guest variant as fallback. */
 async function PurchaseForm({ product }: { product: ProductType }) {
   const session = await getSession();
-  return <AddToCartForm loggedIn={session !== null} priceLabel={formatPrice(product.priceCents)} />;
+  return <AddToCartForm loggedIn={session !== null} priceLabel={priceLabel(product.priceCents)} />;
 }
 
 async function Related({ product }: { product: ProductType }) {
@@ -147,7 +147,7 @@ function Product({ product }: { product: ProductType }) {
               <ProductAttributes product={product} />
               <Suspense
                 fallback={
-                  <AddToCartForm loggedIn={false} priceLabel={formatPrice(product.priceCents)} />
+                  <AddToCartForm loggedIn={false} priceLabel={priceLabel(product.priceCents)} />
                 }
               >
                 <PurchaseForm product={product} />
