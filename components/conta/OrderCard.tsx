@@ -28,10 +28,14 @@ type Props = {
 
 const EMPTY = "#2C2840";
 const heading = "m-0 font-pixel text-[9px] leading-normal text-yellow";
-const actionLink =
-  "inline-flex min-h-11 items-center justify-center bg-text px-3 text-center font-pixel text-[9px] text-bg md:text-[8px]";
-const detailLink =
-  "inline-flex min-h-11 items-center text-[13px] text-link underline underline-offset-4 hover:text-yellow";
+const actionLink = cn(
+  "inline-flex min-h-11 items-center justify-center bg-text px-3 text-center font-pixel text-[9px] text-bg md:text-[8px]",
+  focusRing,
+);
+const detailLink = cn(
+  "inline-flex min-h-11 items-center text-[13px] text-link underline underline-offset-4 hover:text-yellow",
+  focusRing,
+);
 
 function Photos({ order, size }: { order: ClientOrder; size: 48 | 64 }) {
   const photos = order.items.flatMap((i) => (i.image ? [i.image] : []));
@@ -73,8 +77,13 @@ export function OrderCard({ order, productSlugs, defaultOpen = false }: Props) {
   const number = formatOrderNumber(order.number);
   const hint = orderHint(order, channel);
   const address = order.shippingAddress;
-  const action = (
-    <a href={view.action.href} className={actionLink}>
+  // Internal routes navigate with the router; the contact channel is another site.
+  const action = view.action.href.startsWith("/") ? (
+    <Link href={view.action.href} className={actionLink}>
+      {view.action.label}
+    </Link>
+  ) : (
+    <a href={view.action.href} target="_blank" rel="noopener" className={actionLink}>
       {view.action.label}
     </a>
   );
@@ -86,6 +95,7 @@ export function OrderCard({ order, productSlugs, defaultOpen = false }: Props) {
         open ? "border-text" : "border-border",
       )}
     >
+      <h2 className="sr-only md:hidden">PEDIDO {number}</h2>
       {/* Phone: the whole summary is the toggle. */}
       <button
         type="button"
@@ -190,63 +200,63 @@ export function OrderCard({ order, productSlugs, defaultOpen = false }: Props) {
         </div>
       </div>
 
-      {open ? (
-        <div
-          id={panelId}
-          className="flex flex-col gap-5 border-t-[3px] border-dashed border-border bg-deep p-3.5 md:grid md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] md:gap-6 md:px-5 md:py-[22px]"
-        >
-          <p className="m-0 text-[13px] text-text-muted md:hidden">{hint}</p>
-          <section aria-label="Itens" className="flex flex-col gap-2.5">
-            <h3 className={heading}>ITENS</h3>
-            {order.items.map((item, i) => (
-              <div key={`${item.name}-${i}`} className="flex justify-between gap-3 text-sm">
-                <span>
-                  {item.name} ×{item.qty}
-                </span>
-                <span className="text-text-muted">
-                  {priceLabel(item.unitPriceCents === null ? null : item.unitPriceCents * item.qty)}
-                </span>
-              </div>
-            ))}
-            <dl className="m-0 flex flex-col gap-1.5 border-t-2 border-border-soft pt-2.5 text-[13px] text-text-muted">
-              <div className="flex justify-between">
-                <dt>Frete</dt>
-                <dd className="m-0">{totalLabel(order.shippingCents)}</dd>
-              </div>
-              <div className="flex justify-between font-bold text-text">
-                <dt>Total</dt>
-                <dd className="m-0">{totalLabel(order.totalCents)}</dd>
-              </div>
-            </dl>
-          </section>
-          <section aria-label="Entrega" className="flex flex-col gap-2.5">
-            <h3 className={heading}>ENTREGA</h3>
-            <p className="m-0 text-sm leading-relaxed">
-              {address.street}, {address.number}
-              {address.complement ? ` - ${address.complement}` : ""}
-              <br />
-              {address.district} · {address.city}/{address.state}
-              <br />
-              {address.cep}
-            </p>
-            <p id={`rastreio-${order.id}`} className="m-0 text-[13px] text-text-muted">
-              Rastreio:{" "}
-              {order.trackingCode ?? (view.group === "andamento" ? "disponível após o envio" : "—")}
-            </p>
-          </section>
-          <section aria-label="Pagamento e ajuda" className="flex flex-col items-start gap-2.5">
-            <h3 className={heading}>PAGAMENTO</h3>
-            <p className="m-0 text-sm">{paymentText(order)}</p>
-            {/* No invoice exists yet: the design's link stays a placeholder until the fiscal flow does. */}
-            <span className="text-[13px] text-text-subtle">Nota fiscal: [em breve]</span>
-            <Link href={`/trocas?pedido=${order.id}`} className={detailLink}>
-              Solicitar troca ou devolução
-            </Link>
-            <ContactButton kind="chamar" />
-            <div className="w-full md:hidden [&>a]:flex">{action}</div>
-          </section>
-        </div>
-      ) : null}
+      {/* Always in the DOM so `aria-controls` points to something; `hidden` while closed. */}
+      <div
+        id={panelId}
+        hidden={!open}
+        className="flex flex-col gap-5 border-t-[3px] border-dashed border-border bg-deep p-3.5 md:grid md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] md:gap-6 md:px-5 md:py-[22px]"
+      >
+        <p className="m-0 text-[13px] text-text-muted md:hidden">{hint}</p>
+        <section aria-label="Itens" className="flex flex-col gap-2.5">
+          <h3 className={heading}>ITENS</h3>
+          {order.items.map((item, i) => (
+            <div key={`${item.name}-${i}`} className="flex justify-between gap-3 text-sm">
+              <span>
+                {item.name} ×{item.qty}
+              </span>
+              <span className="text-text-muted">
+                {priceLabel(item.unitPriceCents === null ? null : item.unitPriceCents * item.qty)}
+              </span>
+            </div>
+          ))}
+          <dl className="m-0 flex flex-col gap-1.5 border-t-2 border-border-soft pt-2.5 text-[13px] text-text-muted">
+            <div className="flex justify-between">
+              <dt>Frete</dt>
+              <dd className="m-0">{totalLabel(order.shippingCents)}</dd>
+            </div>
+            <div className="flex justify-between font-bold text-text">
+              <dt>Total</dt>
+              <dd className="m-0">{totalLabel(order.totalCents)}</dd>
+            </div>
+          </dl>
+        </section>
+        <section aria-label="Entrega" className="flex flex-col gap-2.5">
+          <h3 className={heading}>ENTREGA</h3>
+          <p className="m-0 text-sm leading-relaxed">
+            {address.street}, {address.number}
+            {address.complement ? ` - ${address.complement}` : ""}
+            <br />
+            {address.district} · {address.city}/{address.state}
+            <br />
+            {address.cep}
+          </p>
+          <p id={`rastreio-${order.id}`} className="m-0 text-[13px] text-text-muted">
+            Rastreio:{" "}
+            {order.trackingCode ?? (view.group === "andamento" ? "disponível após o envio" : "—")}
+          </p>
+        </section>
+        <section aria-label="Pagamento e ajuda" className="flex flex-col items-start gap-2.5">
+          <h3 className={heading}>PAGAMENTO</h3>
+          <p className="m-0 text-sm">{paymentText(order)}</p>
+          {/* No invoice exists yet: the design's link stays a placeholder until the fiscal flow does. */}
+          <span className="text-[13px] text-text-subtle">Nota fiscal: [em breve]</span>
+          <Link href={`/trocas?pedido=${order.id}`} className={detailLink}>
+            Solicitar troca ou devolução
+          </Link>
+          <ContactButton kind="chamar" />
+          <div className="w-full md:hidden [&>a]:flex">{action}</div>
+        </section>
+      </div>
     </article>
   );
 }

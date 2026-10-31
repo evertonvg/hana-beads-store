@@ -5,19 +5,18 @@ const ITEMS = [
   "Meus pedidos",
   "Meus dados",
   "Endereços",
-  "Favoritos",
   "Contas conectadas",
   "Privacidade e dados",
   "Trocas e devoluções",
   "Ajuda",
 ];
 
-test("/conta sem aba mostra o menu com os 8 itens e SAIR", async ({ page }) => {
+test("/conta sem aba mostra o menu com os 7 itens e SAIR", async ({ page }) => {
   await login(page, "ana");
   await expect(page).toHaveURL(/\/conta$/);
   await gotoHydrated(page, "/conta");
   const nav = page.getByRole("navigation", { name: "Opções da conta" });
-  await expect(nav.getByRole("link")).toHaveCount(8);
+  await expect(nav.getByRole("link")).toHaveCount(7);
   for (const name of ITEMS) {
     await expect(nav.getByRole("link", { name: new RegExp(`^${name}`) })).toBeVisible();
   }
@@ -36,14 +35,6 @@ test("Meus pedidos abre /conta/pedidos e Meus dados abre a aba", async ({ page }
   await gotoHydrated(page, "/conta");
   await page.getByRole("link", { name: /^Meus pedidos/ }).click();
   await expect(page).toHaveURL(/\/conta\/pedidos$/);
-});
-
-test("Favoritos leva a /loja", async ({ page }) => {
-  await login(page, "ana");
-  await expect(page).toHaveURL(/\/conta$/);
-  await gotoHydrated(page, "/conta");
-  await page.getByRole("link", { name: /^Favoritos/ }).click();
-  await expect(page).toHaveURL(/\/loja$/);
 });
 
 test("SAIR encerra a sessão", async ({ page }) => {

@@ -162,7 +162,6 @@ export function ReturnForm({ orders, defaultOrderId }: Props) {
           name="reason"
           render={({ field }) => (
             <PillRadioGroup
-              label="Motivo"
               value={field.value}
               onChange={field.onChange}
               options={[...REASONS]}
@@ -205,7 +204,6 @@ export function ReturnForm({ orders, defaultOrderId }: Props) {
           name="preference"
           render={({ field }) => (
             <PillRadioGroup
-              label="Você prefere"
               value={field.value}
               onChange={field.onChange}
               options={[...PREFERENCES]}

@@ -47,14 +47,7 @@ function items(addressCount: number): Item[] {
       href: "/conta?aba=enderecos",
       color: "text-cyan",
     },
-    {
-      icon: "♥",
-      name: "Favoritos",
-      description: "Itens que você curtiu",
-      // Out of scope for now: the favorites filter of the shop is not built, so it goes to /loja.
-      href: "/loja",
-      color: "text-accent",
-    },
+    // "Favoritos" is left out until the favorites page exists (see docs/PENDENCIAS.md).
     {
       icon: "G",
       name: "Contas conectadas",

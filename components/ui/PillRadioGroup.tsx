@@ -5,7 +5,8 @@ import { cn } from "@/lib/cn";
 import { pillClass } from "./pill";
 
 type Props<T extends string> = {
-  label: string;
+  /** Accessible name. Leave it out when a `<fieldset><legend>` already names the group. */
+  label?: string;
   options: { value: T; label: string; note?: string }[];
   value: T;
   onChange: (value: T) => void;
