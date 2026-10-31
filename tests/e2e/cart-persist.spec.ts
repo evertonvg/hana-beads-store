@@ -4,9 +4,6 @@ import { expect, test } from "./support/fixtures";
 
 const KEY = "pp_cart_v1";
 
-/** Routes that later tasks build; their prefetches 404 until then and are unrelated to the cart. */
-const NOT_BUILT_YET = /^\/(encomendas|conta|trocas|privacidade|termos)(\/|$)/;
-
 /** Header cart link: yellow button on desktop, icon with badge on mobile. */
 function cartLink(page: Page, isMobile: boolean, n: number) {
   const name = isMobile ? `Carrinho, ${n} ${n === 1 ? "item" : "itens"}` : `CARRINHO [${n}]`;
@@ -31,8 +28,6 @@ test("corrupted storage falls back to an empty cart and the store stays alive", 
   });
   page.on("response", (r) => {
     if (r.status() < 400) return;
-    const { pathname } = new URL(r.url());
-    if (r.status() === 404 && NOT_BUILT_YET.test(pathname)) return;
     errors.push(`http ${r.status()}: ${r.url()}`);
   });
   await page.addInitScript((key) => localStorage.setItem(key, "{lixo"), KEY);

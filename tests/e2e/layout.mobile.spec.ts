@@ -42,7 +42,9 @@ test.describe("shell celular", () => {
   test("alvos de toque do menu aberto tem pelo menos 44px", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Abrir menu" }).click();
-    await expectTouchTargets(page.getByRole("dialog", { name: "Menu" }));
+    const dialog = page.getByRole("dialog", { name: "Menu" });
+    await expect(dialog.getByRole("link", { name: "ENTRAR" })).toBeVisible();
+    await expectTouchTargets(dialog);
   });
 
   test("tab bar gruda no rodape da tela sem cobrir o conteudo", async ({ page }) => {
