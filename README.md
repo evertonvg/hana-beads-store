@@ -64,4 +64,18 @@ Medido em 2026-10-30 com o Lighthouse CLI 13.5.0 (`npx lighthouse@13.5.0`, sem e
 
 Antes das otimizações: 90 / 91 / 91 / 97 de performance (acessibilidade 100 em todas). Mudanças: o GSAP deixou de entrar no bundle inicial da home (`lib/parallax.ts` é importado com `import()` depois da hidratação) e a fonte Silkscreen (só acentos maiúsculos raros) deixou de ser pré-carregada em todas as páginas. A imagem principal da home e do produto já usava `next/image` com `sizes` e pré-carregamento.
 
-Como repetir: suba o build de produção na porta 3100, e rode `npx lighthouse@13.5.0 http://localhost:3100/ --form-factor=mobile --only-categories=performance,accessibility` (com `CHROME_PATH` apontando para um Chrome). O `/checkout` redireciona para `/carrinho` com o carrinho vazio: o item precisa estar no `localStorage` (`pp_cart_v1`) do Chrome auditado (abra o Chrome com `--remote-debugging-port=9333`, grave a chave e passe `--port=9333 --disable-storage-reset` ao Lighthouse). As notas variam 1 a 3 pontos entre execuções.
+Como repetir (Git Bash; ajuste `CHROME_PATH` para o seu Chrome):
+
+```bash
+# 1. build de produção + servidor na porta 3100 (mesmas variáveis do webServer em playwright.config.ts)
+export DATA_SOURCE=mock SESSION_SECRET=e2e-secret-e2e-secret-e2e-secret-00   NEXT_PUBLIC_SITE_URL=http://localhost:3100 NEXT_PUBLIC_INSTAGRAM_USER=pixelperfect.teste   NEXT_PUBLIC_ANALYTICS_SRC=/__analytics-test.js
+npm run build && npm run start -- -p 3100 &
+
+# 2. rotas sem login
+export CHROME_PATH="C:/Program Files/Google/Chrome/Application/chrome.exe"
+for p in / /loja /produto/garota-pixel; do
+  npx lighthouse@13.5.0 "http://localhost:3100$p" --form-factor=mobile     --only-categories=performance,accessibility --chrome-flags="--headless=new"     --output=json --output-path="lh$(echo $p | tr / _).json"
+done
+```
+
+`/checkout` redireciona para `/carrinho` com o carrinho vazio: abra o Chrome com `--remote-debugging-port=9333 --headless=new about:blank`, grave no `localStorage` de `http://localhost:3100` a chave `pp_cart_v1` = `{"state":{"lines":[{"productId":"garota","ring":"mosquetao","qty":1}]},"version":1}` (por exemplo com `chromium.connectOverCDP` do Playwright) e rode `npx lighthouse@13.5.0 http://localhost:3100/checkout --port=9333 --disable-storage-reset --form-factor=mobile --only-categories=performance,accessibility`. Encerre o servidor e o Chrome no fim. As notas variam 1 a 3 pontos entre execuções.

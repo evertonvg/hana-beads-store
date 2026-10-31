@@ -43,7 +43,7 @@ Pontos que a revisão jurídica precisa cobrir:
 - **Datas das fixtures.** Os pedidos de teste mostram datas reais (ex.: 01/08/2026). São dados de desenvolvimento, nunca de produção; as datas reais virão do backend. Se preferir, trocar a exibição por `[00/00/0000]`.
 - **Acentos em Press Start 2P.** A fonte pixelada não desenha bem alguns acentos maiúsculos (Í, Ú). O dono aceitou o fallback em Silkscreen (traço mais fino nas letras acentuadas), que fica registrado aqui. O caso de teste é `tests/e2e/fonte.spec.ts`.
 - **Cidade e UF em campos separados.** O design mostra "Cidade / UF"; o formulário separa os dois por usabilidade (o ViaCEP devolve os dois e o frete precisa da UF). Aceito; reverter só se o dono quiser o layout literal.
-- **Extras do carrinho e do checkout.** Botão APLICAR do cupom, rascunho de cupom restaurado e `PillRadioGroup` para o frete não estão no design. Aceitos por usabilidade.
+- **Extras do carrinho e do checkout.** Botão APLICAR do cupom, rascunho de cupom restaurado, cupom sempre aberto no celular e `PillRadioGroup` para o frete não estão no design. Aceitos por usabilidade.
 - **Gaveta "Continuar".** No desktop o design usa o link "Continuar comprando" em Space Mono 14px; a implementação usa `‹ CONTINUAR JOGANDO` (microcopy do glossário do briefing) em fonte pixel, sem sombra. Manter ou alinhar.
 - **Newsletter.** O formulário tem 520 px como no design; o cartão que o envolve tem 720 px com fundo `surface` (vem da tela de parallax). Aceito.
 

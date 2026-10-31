@@ -1,6 +1,5 @@
 import { expect, type Page } from "@playwright/test";
 import { login } from "./fixtures";
-import { gotoHydrated } from "./hydration";
 
 export type SweepRoute = {
   /** Used in snapshot and test names. */
@@ -56,15 +55,14 @@ export async function openRoute(page: Page, route: SweepRoute) {
   const response = await page.goto(route.path);
   // Web-first readiness: the page body is up (and the checkout form, which renders after hydration).
   await expect(page.getByRole("main")).toBeVisible();
-  // axe must see the hydrated DOM: before hydration Headless UI controls have no label wiring yet.
-  await page.waitForFunction(() =>
-    Object.keys(document).some((key) => key.startsWith("__reactContainer")),
-  );
-  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(null))));
+  // axe must see the hydrated DOM (before hydration Headless UI controls have no label wiring):
+  // wait until React props are attached to a control inside <main>, as gotoHydrated does.
+  await page.waitForFunction(() => {
+    const control = document.querySelector("main button, main input, main a");
+    return control !== null && Object.keys(control).some((k) => k.startsWith("__reactProps"));
+  });
   if (route.cart) {
     await expect(page.getByRole("heading", { level: 1, name: "SAVE GAME" })).toBeVisible();
   }
   return response;
 }
-
-export { gotoHydrated };

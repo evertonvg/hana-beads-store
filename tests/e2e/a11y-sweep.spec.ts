@@ -27,19 +27,27 @@ for (const route of ROUTES) {
         'a[href], button, input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="switch"], [role="radio"], [role="tab"], [role="checkbox"]';
       const out: string[] = [];
       for (const el of document.querySelectorAll<HTMLElement>(sel)) {
+        // Inline links inside running text are exempt. The skip link is only shown on focus, so it is
+        // measured separately (see the focused skip link check below).
         if (el.matches('a[href="#conteudo"]') || (el.closest("p") !== null && el.matches("p a")))
           continue;
         const style = getComputedStyle(el);
         if (style.visibility === "hidden" || style.display === "none") continue;
-        // Controls drawn by a label/row (switch, checkbox): measure the clickable row instead.
         const own = el.getBoundingClientRect();
+        let rect = own;
+        // Switch and checkbox draw a small box; the target is the row that holds the box AND its
+        // label, because clicking the label toggles it. The row is the closest common ancestor of
+        // the control and its labelling element. A pill radio is NOT exempt: each one is its own target.
+        const role = el.getAttribute("role");
+        if (role === "switch" || role === "checkbox") {
+          const labelId = el.getAttribute("aria-labelledby")?.split(" ")[0];
+          const labelEl = labelId ? document.getElementById(labelId) : null;
+          let row: HTMLElement | null = el.parentElement;
+          while (row && labelEl && !row.contains(labelEl)) row = row.parentElement;
+          if (row && labelEl) rect = row.getBoundingClientRect();
+        }
         const label = el.id ? document.querySelector<HTMLElement>(`label[for="${el.id}"]`) : null;
-        const isRowControl = ["switch", "checkbox", "radio"].includes(
-          el.getAttribute("role") ?? "",
-        );
-        const box =
-          isRowControl && el.parentElement ? el.parentElement.getBoundingClientRect() : own;
-        const rect = own.width * own.height === 0 && label ? label.getBoundingClientRect() : box;
+        if (own.width * own.height === 0 && label) rect = label.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) continue;
         if (rect.width < min - 0.5 || rect.height < min - 0.5) {
           const name = el.getAttribute("aria-label") ?? el.textContent?.trim().slice(0, 30) ?? "";
@@ -51,6 +59,14 @@ for (const route of ROUTES) {
       return out;
     }, MIN);
     expect.soft(small, "alvos menores que 44x44").toEqual([]);
+
+    // The skip link is hidden until focused: once focused it must also be a 44x44 target.
+    await page.keyboard.press("Tab");
+    const skip = page.locator('a[href="#conteudo"]');
+    await expect(skip).toBeFocused();
+    const box = await skip.boundingBox();
+    expect.soft(box?.height, "altura do skip link focado").toBeGreaterThanOrEqual(MIN);
+    expect.soft(box?.width, "largura do skip link focado").toBeGreaterThanOrEqual(MIN);
 
     // 3. No border-radius anywhere except beads.
     const rounded = await page.evaluate(() => {
