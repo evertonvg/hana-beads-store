@@ -16,7 +16,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-screen flex-col">
         <a
           href="#conteudo"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:bg-yellow focus:px-4 focus:py-3 focus:font-pixel focus:text-[10px] focus:text-bg focus:outline-[3px] focus:outline-cyan"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:inline-flex focus:min-h-11 focus:items-center focus:bg-yellow focus:px-4 focus:py-3 focus:font-pixel focus:text-[10px] focus:text-bg focus:outline-[3px] focus:outline-cyan"
         >
           Pular para o conteúdo
         </a>
