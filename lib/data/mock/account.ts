@@ -1,4 +1,4 @@
-import type { AccountPort, ConsentRecord } from "@/lib/data/ports";
+import type { AccountExport, AccountPort, ConsentRecord } from "@/lib/data/ports";
 import type { Address } from "@/lib/data/types";
 
 import { getMockStore } from "./store";
@@ -19,6 +19,10 @@ function recordsOf(userId: string): ConsentRecord[] {
       revokedAt,
     }));
 }
+
+/** Stock alerts and newsletter records are keyed by e-mail too (visitors have no user id). */
+const ownAlert = (a: { userId: string | null; email: string }, userId: string, email: string) =>
+  a.userId === userId || a.email === email;
 
 /** In-memory account data. Every method only reaches the data of the `userId` it is given. */
 export function createMockAccount(): AccountPort {
@@ -141,25 +145,32 @@ export function createMockAccount(): AccountPort {
     exportData(userId) {
       const store = getMockStore();
       const u = user(userId);
-      if (!u) return Promise.resolve({});
-      const mine = store.orders.filter((o) => o.userId === userId);
-      return Promise.resolve(
-        structuredClone({
-          exportedAt: new Date().toISOString(),
-          profile: {
-            id: u.id,
-            name: u.name,
-            email: u.email,
-            phone: u.phone,
-            cpf: u.cpf ?? null,
-          },
-          addresses: store.addresses[userId] ?? [],
-          consents: recordsOf(userId),
-          connections: store.connections[userId] ?? [],
-          favorites: store.favorites[userId] ?? [],
-          orders: mine,
-        }),
-      );
+      if (!u) return Promise.resolve(null);
+      const data: AccountExport = {
+        exportedAt: new Date().toISOString(),
+        profile: { id: u.id, name: u.name, email: u.email, phone: u.phone, cpf: u.cpf ?? null },
+        addresses: store.addresses[userId] ?? [],
+        consents: recordsOf(userId),
+        connections: store.connections[userId] ?? [],
+        favorites: store.favorites[userId] ?? [],
+        orders: store.orders.filter((o) => o.userId === userId),
+        returns: store.returns
+          .filter((r) => r.userId === userId)
+          .map(({ protocol, orderId, reason, description, preference, photos }) => ({
+            protocol,
+            orderId,
+            reason,
+            description,
+            preference,
+            photos,
+          })),
+        stockAlerts: store.stockAlerts
+          .filter((a) => ownAlert(a, userId, u.email))
+          .map(({ email, productId, consentedAt }) => ({ email, productId, consentedAt })),
+        newsletter: store.newsletter.find((n) => n.email === u.email) ?? null,
+        savedCart: store.savedCarts[userId] ?? null,
+      };
+      return Promise.resolve(structuredClone(data));
     },
 
     deleteAccount(userId, password) {
@@ -170,7 +181,9 @@ export function createMockAccount(): AccountPort {
       }
       store.users = store.users.filter((x) => x.id !== userId);
       store.consents = store.consents.filter((c) => c.userId !== userId);
-      store.stockAlerts = store.stockAlerts.filter((a) => a.userId !== userId);
+      store.stockAlerts = store.stockAlerts.filter((a) => !ownAlert(a, userId, u.email));
+      store.newsletter = store.newsletter.filter((n) => n.email !== u.email);
+      store.returns = store.returns.filter((r) => r.userId !== userId);
       delete store.addresses[userId];
       delete store.connections[userId];
       delete store.favorites[userId];

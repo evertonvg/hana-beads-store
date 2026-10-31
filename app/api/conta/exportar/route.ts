@@ -8,6 +8,7 @@ export async function GET() {
   const user = await getSession().catch(() => null);
   if (!user) return Response.json({ error: "Não autorizado." }, { status: 401, headers: NO_STORE });
   const data = await getData().account.exportData(user.id);
+  if (!data) return Response.json({ error: "Não autorizado." }, { status: 401, headers: NO_STORE });
   return new Response(JSON.stringify(data, null, 2), {
     headers: {
       ...NO_STORE,

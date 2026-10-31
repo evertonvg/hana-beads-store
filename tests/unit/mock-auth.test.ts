@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createMockAuth } from "@/lib/data/mock/auth";
 import { getMockStore } from "@/lib/data/mock/store";
+import { MARKETING_CONSENT_VERSION } from "@/lib/validation/account";
 
 const newUser = {
   name: "Nova Pessoa",
@@ -84,5 +85,26 @@ describe("mock auth", () => {
     const port = createMockAuth();
     await expect(port.requestPasswordReset("ana@teste.dev")).resolves.toBeUndefined();
     await expect(port.requestPasswordReset("ninguem@teste.dev")).resolves.toBeUndefined();
+  });
+
+  it("never reuses the id of a deleted user", async () => {
+    const port = createMockAuth();
+    const first = await port.signUp(newUser);
+    if ("error" in first) throw new Error("unexpected");
+    const store = getMockStore();
+    store.users = store.users.filter((u) => u.id !== first.id);
+    const second = await port.signUp({ ...newUser, email: "outra@teste.dev" });
+    if ("error" in second) throw new Error("unexpected");
+    expect(second.id).not.toBe(first.id);
+    expect(await port.userById(first.id)).toBeNull();
+  });
+
+  it("records the marketing consent with the marketing text version", async () => {
+    const port = createMockAuth();
+    await port.signUp({ ...newUser, marketingEmail: true, termsVersion: "2020-01-01" });
+    const marketing = getMockStore().consents.find((c) => c.type === "email_marketing");
+    expect(marketing?.version).toBe(MARKETING_CONSENT_VERSION);
+    const terms = getMockStore().consents.find((c) => c.type === "terms");
+    expect(terms?.version).toBe("2020-01-01");
   });
 });

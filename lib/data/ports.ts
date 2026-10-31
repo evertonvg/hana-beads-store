@@ -127,6 +127,28 @@ export type ConsentRecord = {
 
 export type Connection = { provider: AuthProvider; email: string | null };
 
+/** Everything stored about one user (LGPD art. 18, portability). Also matched by profile e-mail. */
+export type AccountExport = {
+  exportedAt: string;
+  profile: { id: string; name: string; email: string; phone: string; cpf: string | null };
+  addresses: Address[];
+  consents: ConsentRecord[];
+  connections: Connection[];
+  favorites: string[];
+  orders: Order[];
+  returns: {
+    protocol: string;
+    orderId: string;
+    reason: string;
+    description: string;
+    preference: string;
+    photos: { name: string; type: string; size: number }[];
+  }[];
+  stockAlerts: { email: string; productId: string; consentedAt: string }[];
+  newsletter: { email: string; consentVersion: string } | null;
+  savedCart: CartData | null;
+};
+
 /** Everything the signed-in user manages in "Minha conta". Every call is scoped to `userId`. */
 export interface AccountPort {
   /** null = unknown user. */
@@ -156,8 +178,12 @@ export interface AccountPort {
   connect(userId: string, provider: AuthProvider): Promise<void>;
   /** `ok: false` when it is the last way to sign in (no password and only this provider). */
   disconnect(userId: string, provider: AuthProvider): Promise<{ ok: boolean }>;
-  exportData(userId: string): Promise<Record<string, unknown>>;
-  /** `ok: false` (and nothing deleted) when the password is wrong. */
+  /** null = unknown user. */
+  exportData(userId: string): Promise<AccountExport | null>;
+  /**
+   * `ok: false` (and nothing deleted) when the password is wrong. Besides the account it removes
+   * return requests, stock alerts and the newsletter subscription made with the profile e-mail.
+   */
   deleteAccount(userId: string, password: string): Promise<{ ok: boolean }>;
 }
 

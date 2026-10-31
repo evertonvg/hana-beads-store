@@ -24,6 +24,16 @@ export const publicEnvSchema = z.object({
   NEXT_PUBLIC_ANALYTICS_SRC: z.string().optional(),
 });
 
+/**
+ * Server-only variables. `DATA_SOURCE` has no default on purpose: it gates the `/api/__mock__/*`
+ * test routes, so a deploy that forgets it must fail to boot instead of exposing them.
+ */
+export const serverEnvSchema = z.object({
+  DATA_SOURCE: z.enum(["mock"]),
+  // iron-session requires a secret of 32+ characters
+  SESSION_SECRET: z.string().min(32),
+});
+
 type ParsedPublicEnv = z.output<typeof publicEnvSchema>;
 
 export type PublicEnv = {
@@ -51,11 +61,7 @@ export function toPublicEnv(parsed: ParsedPublicEnv): PublicEnv {
 }
 
 export const env = createEnv({
-  server: {
-    DATA_SOURCE: z.enum(["mock"]).default("mock"),
-    // iron-session requires a secret of 32+ characters
-    SESSION_SECRET: z.string().min(32),
-  },
+  server: serverEnvSchema.shape,
   client: publicEnvSchema.shape,
   experimental__runtimeEnv: {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,

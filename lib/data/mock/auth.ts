@@ -1,6 +1,8 @@
 import type { AuthPort, AuthUser } from "@/lib/data/ports";
 
 import type { MockUser } from "./fixtures";
+import { MARKETING_CONSENT_VERSION } from "@/lib/validation/account";
+
 import { getMockStore } from "./store";
 
 const normalize = (email: string) => email.trim().toLowerCase();
@@ -20,7 +22,8 @@ export function createMockAuth(): AuthPort {
         return Promise.resolve({ error: "email_em_uso" as const });
       }
       const user: MockUser = {
-        id: `u${store.users.length + 1}`,
+        // Never derived from the user count: a deleted user's id must not come back.
+        id: crypto.randomUUID(),
         name: input.name.trim(),
         email,
         phone: input.phone,
@@ -32,8 +35,8 @@ export function createMockAuth(): AuthPort {
         store.addresses[user.id] = [{ ...input.address, id: crypto.randomUUID(), isDefault: true }];
       }
       const grantedAt = new Date().toISOString();
-      const version = input.termsVersion;
-      const grant = (type: "terms" | "privacy" | "email_marketing") =>
+      const termsVersion = input.termsVersion;
+      const grant = (type: "terms" | "privacy" | "email_marketing", version = termsVersion) =>
         store.consents.push({
           userId: user.id,
           type,
@@ -44,7 +47,7 @@ export function createMockAuth(): AuthPort {
         });
       grant("terms");
       grant("privacy");
-      if (input.marketingEmail) grant("email_marketing");
+      if (input.marketingEmail) grant("email_marketing", MARKETING_CONSENT_VERSION);
       return Promise.resolve(toUser(user));
     },
 

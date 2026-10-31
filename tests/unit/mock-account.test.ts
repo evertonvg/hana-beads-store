@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createMockAccount } from "@/lib/data/mock/account";
 import { createMockAuth } from "@/lib/data/mock/auth";
+import { createMockEngagement } from "@/lib/data/mock/engagement";
+import { createMockNewsletter } from "@/lib/data/mock/newsletter";
 import { createMockOrders } from "@/lib/data/mock/orders";
+import { createMockReturns } from "@/lib/data/mock/returns";
 import { getMockStore } from "@/lib/data/mock/store";
 import type { Address } from "@/lib/data/types";
 
@@ -118,7 +121,7 @@ describe("mock account", () => {
   it("exports only the user's own data", async () => {
     const port = createMockAccount();
     await port.setConsent("ana", "email_marketing", true, V);
-    const data = await port.exportData("ana");
+    const data = (await port.exportData("ana"))!;
     const text = JSON.stringify(data);
     expect(data.profile).toMatchObject({ email: "ana@teste.dev" });
     expect(text).not.toContain("bruno");
@@ -161,5 +164,78 @@ describe("mock account", () => {
     expect(kept?.userId).toBeNull();
     expect(kept?.customer.name).toBe("[removido]");
     expect(await createMockAuth().userById("bruno")).not.toBeNull();
+  });
+
+  it("exports returns, stock alerts (by id and by e-mail), newsletter and saved cart", async () => {
+    const store = getMockStore();
+    const delivered = store.orders.find((o) => o.userId === "ana" && o.status === "enviado");
+    expect(delivered).toBeDefined();
+    await createMockReturns().create("ana", {
+      orderId: delivered!.id,
+      reason: "defeito",
+      description: "Veio com defeito",
+      preference: "troca",
+      photos: [new File(["0123456789"], "foto.jpg", { type: "image/jpeg" })],
+    });
+    const engagement = createMockEngagement();
+    await engagement.requestStockAlert({
+      userId: "ana",
+      email: "outro@teste.dev",
+      productId: "garota",
+      consentedAt: "2026-10-28T00:00:00.000Z",
+    });
+    await engagement.requestStockAlert({
+      userId: null,
+      email: "ANA@teste.dev",
+      productId: "e13",
+      consentedAt: "2026-10-28T00:00:00.000Z",
+    });
+    await engagement.requestStockAlert({
+      userId: null,
+      email: "bruno@teste.dev",
+      productId: "er",
+      consentedAt: "2026-10-28T00:00:00.000Z",
+    });
+    await createMockNewsletter().subscribe({
+      email: "ana@teste.dev",
+      consent: true,
+      consentVersion: V,
+    });
+
+    const data = (await createMockAccount().exportData("ana"))!;
+    expect(data.returns).toHaveLength(1);
+    expect(data.returns[0]).toMatchObject({
+      description: "Veio com defeito",
+      photos: [{ name: "foto.jpg", type: "image/jpeg", size: 10 }],
+    });
+    expect(data.stockAlerts.map((a) => a.productId).sort()).toEqual(["e13", "garota"]);
+    expect(data.newsletter).toEqual({ email: "ana@teste.dev", consentVersion: V });
+    expect(data.savedCart?.lines).toHaveLength(1);
+    expect(JSON.stringify(data)).not.toContain("bruno");
+  });
+
+  it("deletes returns and stock alerts of the user, also those made with the same e-mail", async () => {
+    const store = getMockStore();
+    const delivered = store.orders.find((o) => o.userId === "ana" && o.status === "enviado");
+    await createMockReturns().create("ana", {
+      orderId: delivered!.id,
+      reason: "defeito",
+      description: "x",
+      preference: "troca",
+      photos: [],
+    });
+    const engagement = createMockEngagement();
+    const base = { productId: "garota", consentedAt: "2026-10-28T00:00:00.000Z" };
+    await engagement.requestStockAlert({ userId: null, email: "ana@teste.dev", ...base });
+    await engagement.requestStockAlert({ userId: null, email: "bruno@teste.dev", ...base });
+    await createMockNewsletter().subscribe({
+      email: "ana@teste.dev",
+      consent: true,
+      consentVersion: V,
+    });
+    expect(await createMockAccount().deleteAccount("ana", "Senha@123")).toEqual({ ok: true });
+    expect(store.returns.filter((r) => r.userId === "ana")).toEqual([]);
+    expect(store.stockAlerts.map((a) => a.email)).toEqual(["bruno@teste.dev"]);
+    expect(store.newsletter).toEqual([]);
   });
 });
