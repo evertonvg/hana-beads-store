@@ -195,3 +195,55 @@ test("adicionar na página do produto mostra o item no carrinho", async ({ page 
   await expect(items(page)).toHaveCount(1);
   await expect(items(page).nth(0)).toContainText("GAROTA PIXEL");
 });
+
+/** Makes every server action call fail (a dropped connection) until `heal()` is called. */
+async function breakServerActions(page: Page) {
+  let broken = true;
+  await page.route("**/*", (route) => {
+    const request = route.request();
+    if (broken && request.method() === "POST" && request.headers()["next-action"]) {
+      return route.abort("failed");
+    }
+    return route.continue();
+  });
+  return {
+    heal: () => {
+      broken = false;
+    },
+  };
+}
+
+test("se os preços não carregam, avisa e oferece tentar de novo (sem resumo nem finalizar)", async ({
+  page,
+}) => {
+  const server = await breakServerActions(page);
+  await seedCart(page, TWO_LINES);
+  await page.goto("/carrinho");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Não foi possível carregar os preços." }),
+  ).toBeVisible();
+  await expect(summary(page)).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /FINALIZAR/ })).toHaveCount(0);
+  await expect(page.getByText("R$ [VALOR]")).toHaveCount(0);
+
+  server.heal();
+  await page.getByRole("button", { name: "TENTAR DE NOVO" }).click();
+  await expect(items(page)).toHaveCount(2);
+  await expect(summary(page)).toBeVisible();
+});
+
+test("o checkout também avisa quando os preços não carregam", async ({ page }) => {
+  const server = await breakServerActions(page);
+  await seedCart(page, TWO_LINES);
+  await page.goto("/checkout");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Não foi possível carregar os preços." }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /FINALIZAR|CONFIRMAR PEDIDO|PAGAR/ })).toHaveCount(
+    0,
+  );
+
+  server.heal();
+  await page.getByRole("button", { name: "TENTAR DE NOVO" }).click();
+  await expect(page.getByText("PAGAMENTO", { exact: true })).toBeVisible();
+});

@@ -5,6 +5,7 @@ import { useEffect, type ReactNode } from "react";
 import { useCartPrices } from "@/components/cart/use-cart-prices";
 import { useCartStore } from "@/lib/cart/store";
 import { useCartHydrated } from "@/lib/cart/use-cart-hydrated";
+import { PricesError } from "@/components/cart/PricesError";
 import { CheckoutForm, type CheckoutInitial } from "./CheckoutForm";
 import { CheckoutSteps } from "./CheckoutSteps";
 
@@ -25,7 +26,7 @@ export function CheckoutFrame({ children }: { children?: ReactNode }) {
 
 function CheckoutContent({ initial }: { initial: CheckoutInitial }) {
   const router = useRouter();
-  const { lines, priced, unknownIds, loading } = useCartPrices();
+  const { lines, priced, unknownIds, loading, error, retry } = useCartPrices();
 
   // An empty cart has nothing to pay for: back to the inventory.
   useEffect(() => {
@@ -48,6 +49,7 @@ function CheckoutContent({ initial }: { initial: CheckoutInitial }) {
       </div>
     );
   }
+  if (error) return <PricesError onRetry={retry} />;
   return <CheckoutForm initial={initial} lines={lines} priced={priced} />;
 }
 

@@ -14,6 +14,7 @@ import { CartEmpty } from "./CartEmpty";
 import { CartLine } from "./CartLine";
 import { CartSummary } from "./CartSummary";
 import { CouponForm } from "./CouponForm";
+import { PricesError } from "./PricesError";
 import { FreeShippingBar } from "./FreeShippingBar";
 import { ShippingQuoteBox } from "./ShippingQuote";
 import { useCartPrices } from "./use-cart-prices";
@@ -36,7 +37,7 @@ function Heading({ count }: { count: number | null }) {
 }
 
 function CartContent({ suggestions }: { suggestions: ReactNode }) {
-  const { lines, priced, unknownIds, loading } = useCartPrices();
+  const { lines, priced, unknownIds, loading, error, retry } = useCartPrices();
   const lastRemoved = useCartStore((s) => s.lastRemoved);
   const [draft, setDraft] = useState<CheckoutDraft>(readDraft);
   const patchDraft = (patch: Partial<CheckoutDraft>) => setDraft((d) => ({ ...d, ...patch }));
@@ -85,6 +86,15 @@ function CartContent({ suggestions }: { suggestions: ReactNode }) {
         <div role="status" className="font-pixel text-[10px] text-text-muted">
           CARREGANDO…
         </div>
+      </>
+    );
+  }
+
+  if (error) {
+    return (
+      <>
+        <Heading count={null} />
+        <PricesError onRetry={retry} />
       </>
     );
   }

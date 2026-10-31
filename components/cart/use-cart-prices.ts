@@ -18,6 +18,10 @@ type CartPrices = {
   unknownIds: string[];
   /** No answer yet for a non-empty cart. */
   loading: boolean;
+  /** The pricing request failed: the amounts are unknown, so no summary may be shown. */
+  error: boolean;
+  /** Asks the server again (the "TENTAR DE NOVO" button). */
+  retry: () => void;
 };
 
 /**
@@ -33,6 +37,7 @@ export function useCartPrices(): CartPrices {
     queryFn: () => priceCartAction(lines),
     placeholderData: keepPreviousData,
     enabled: lines.length > 0,
+    retry: 1,
   });
   const products = new Map(query.data?.lines.map((l) => [l.productId, l.product]));
   const priced = lines.flatMap((l) => {
@@ -44,5 +49,7 @@ export function useCartPrices(): CartPrices {
     priced,
     unknownIds: query.isPlaceholderData ? NONE : (query.data?.unknownIds ?? NONE),
     loading: lines.length > 0 && query.isPending,
+    error: lines.length > 0 && query.isError,
+    retry: () => void query.refetch(),
   };
 }

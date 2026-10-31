@@ -117,7 +117,7 @@ export function CartDrawer({ open, onClose, lastAdded }: Props) {
               <Thumb product={lineProduct} highlight={highlight} />
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                 <span className="font-pixel text-[9px] leading-normal break-words md:text-[10px]">
-                  {lineProduct ? lineProduct.name : `[${line.productId}]`}
+                  {lineProduct ? lineProduct.name : "…"}
                 </span>
                 <span className="text-xs text-text-muted">
                   Argola: {RING_NAME[line.ring]} · <span>×{line.qty}</span>
