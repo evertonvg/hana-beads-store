@@ -58,12 +58,21 @@ export function ReturnForm({ orders, defaultOrderId }: Props) {
     handleSubmit,
     setError,
     reset,
+    setFocus,
     formState: { errors },
   } = useForm<ReturnInput>({ resolver: zodResolver(returnSchema), defaultValues: defaults });
 
+  // "NOVA SOLICITAÇÃO" swaps the confirmation for the form: the focus goes to its first field.
+  const wasSent = useRef(false);
   useEffect(() => {
-    if (protocol) sentHeading.current?.focus();
-  }, [protocol]);
+    if (protocol) {
+      wasSent.current = true;
+      sentHeading.current?.focus();
+    } else if (wasSent.current) {
+      wasSent.current = false;
+      setFocus("orderId");
+    }
+  }, [protocol, setFocus]);
 
   const onSubmit = (values: ReturnInput) => {
     setFormError(null);

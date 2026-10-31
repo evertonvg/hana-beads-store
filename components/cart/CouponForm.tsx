@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { validateCouponAction } from "@/app/(loja)/carrinho/actions";
 import { Button } from "@/components/ui/Button";
@@ -29,11 +30,21 @@ export function CouponForm({ lines, coupon, onChange }: Props) {
     handleSubmit,
     setError,
     reset,
+    setFocus,
     formState: { errors },
   } = useForm<CouponInput>({
     resolver: zodResolver(couponSchema),
     defaultValues: { code: "" },
   });
+  // APLICAR and REMOVER replace each other: after the user's own action, keep the focus on the new control.
+  const removeButton = useRef<HTMLButtonElement>(null);
+  const moveFocus = useRef(false);
+  useEffect(() => {
+    if (!moveFocus.current) return;
+    moveFocus.current = false;
+    if (coupon) removeButton.current?.focus();
+    else setFocus("code");
+  }, [coupon, setFocus]);
   const validate = useMutation({ mutationFn: validateCouponAction });
 
   const onSubmit = ({ code }: CouponInput) => {
@@ -42,6 +53,7 @@ export function CouponForm({ lines, coupon, onChange }: Props) {
       {
         onSuccess: (result) => {
           if (result.ok) {
+            moveFocus.current = true;
             onChange({
               code: result.code,
               label: result.label,
@@ -62,9 +74,13 @@ export function CouponForm({ lines, coupon, onChange }: Props) {
       <div className="flex items-center justify-between gap-3 text-sm">
         <span>Código secreto aplicado.</span>
         <Button
+          ref={removeButton}
           variant="ghost"
           aria-label="REMOVER CUPOM"
-          onClick={() => onChange(null)}
+          onClick={() => {
+            moveFocus.current = true;
+            onChange(null);
+          }}
           className="px-0 text-[9px]"
         >
           REMOVER

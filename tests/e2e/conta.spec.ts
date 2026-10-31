@@ -297,3 +297,44 @@ test.describe("sessão", () => {
     await snap(page, "conta-privacidade");
   });
 });
+
+test.describe("foco ao trocar de tela", () => {
+  test("endereços: abrir foca o 1º campo; cancelar, salvar e remover devolvem o foco", async ({
+    page,
+  }) => {
+    await openTab(page, "enderecos");
+    const novo = page.getByRole("button", { name: "+ NOVO ENDEREÇO" });
+
+    await novo.click();
+    await expect(page.getByLabel("Apelido")).toBeFocused();
+    await page.getByRole("button", { name: "CANCELAR" }).click();
+    await expect(novo).toBeFocused();
+
+    await page.getByRole("button", { name: "Editar endereço Casa" }).click();
+    await expect(page.getByLabel("Apelido")).toBeFocused();
+    await page.getByRole("button", { name: "CANCELAR" }).click();
+    await expect(page.getByRole("button", { name: "Editar endereço Casa" })).toBeFocused();
+
+    await novo.click();
+    await page.getByLabel("Apelido").fill("Trabalho");
+    await page.getByLabel("CEP").fill("01001000");
+    await expect(page.getByLabel("Rua")).toHaveValue("Praça da Sé");
+    await page.getByLabel("Número").fill("200");
+    await page.getByRole("button", { name: "SALVAR ENDEREÇO" }).click();
+    await expect(status(page)).toHaveText("Endereço salvo.");
+    await expect(novo).toBeFocused();
+
+    await page.getByRole("button", { name: "Remover endereço Trabalho" }).click();
+    await expect(status(page)).toHaveText("Endereço removido.");
+    await expect(page.getByRole("button", { name: "Editar endereço Casa" })).toBeFocused();
+  });
+
+  test("excluir conta: abrir foca a senha; cancelar volta ao botão", async ({ page }) => {
+    await openTab(page, "privacidade");
+    const abrir = page.getByRole("button", { name: "EXCLUIR CONTA" });
+    await abrir.click();
+    await expect(page.getByLabel("Digite sua senha para confirmar")).toBeFocused();
+    await page.getByRole("button", { name: "CANCELAR" }).click();
+    await expect(abrir).toBeFocused();
+  });
+});

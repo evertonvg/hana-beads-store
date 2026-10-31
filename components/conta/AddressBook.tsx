@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { deleteAddressAction, setDefaultAddressAction } from "@/app/(conta)/conta/actions";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { focusRing } from "@/components/ui/focus";
@@ -61,6 +61,7 @@ function AddressCard({
           type="button"
           disabled={disabled}
           aria-label={`Editar endereço ${name}`}
+          data-focus-key={`edit:${address.id}`}
           onClick={onEdit}
           className={cn(linkButton, "text-link")}
         >
@@ -97,8 +98,28 @@ export function AddressBook({ addresses }: { addresses: Address[] }) {
   // undefined = form closed; null = new address; otherwise the one being edited.
   const [editing, setEditing] = useState<Address | null | undefined>(undefined);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+  // Which control gets the focus once the screen shows the list again (`data-focus-key`).
+  const focusKey = useRef<string | null>(null);
 
-  const run = (work: () => Promise<FormState>) => {
+  useEffect(() => {
+    if (focusKey.current === null || pending || editing !== undefined) return;
+    const target = root.current?.querySelector<HTMLElement>(
+      `[data-focus-key="${focusKey.current}"]`,
+    );
+    focusKey.current = null;
+    target?.focus();
+  }, [addresses, editing, pending]);
+
+  /** Where the focus goes when `address` disappears or changes: its neighbor, else "add new". */
+  const neighborKey = (address: Address) => {
+    const at = addresses.findIndex((a) => a.id === address.id);
+    const near = addresses[at + 1] ?? addresses[at - 1];
+    return near ? `edit:${near.id}` : "new";
+  };
+
+  const run = (work: () => Promise<FormState>, focusAfter: string) => {
+    focusKey.current = focusAfter;
     setMessage(null);
     startTransition(async () => {
       let result: FormState;
@@ -112,14 +133,18 @@ export function AddressBook({ addresses }: { addresses: Address[] }) {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div ref={root} className="flex flex-col gap-4">
       {editing !== undefined ? (
         <AddressForm
           // A different address (or a new one) is a different form: start it clean.
           key={editing?.id ?? "new"}
           address={editing}
-          onCancel={() => setEditing(undefined)}
+          onCancel={() => {
+            focusKey.current = editing?.id ? `edit:${editing.id}` : "new";
+            setEditing(undefined);
+          }}
           onDone={(text) => {
+            focusKey.current = editing?.id ? `edit:${editing.id}` : "new";
             setEditing(undefined);
             setMessage({ ok: true, text });
           }}
@@ -132,13 +157,14 @@ export function AddressBook({ addresses }: { addresses: Address[] }) {
               address={a}
               disabled={pending}
               onEdit={() => setEditing(a)}
-              onRemove={() => run(() => deleteAddressAction(a.id))}
-              onMakeDefault={() => run(() => setDefaultAddressAction(a.id))}
+              onRemove={() => run(() => deleteAddressAction(a.id), neighborKey(a))}
+              onMakeDefault={() => run(() => setDefaultAddressAction(a.id), `edit:${a.id}`)}
             />
           ))}
           <li className="flex">
             <button
               type="button"
+              data-focus-key="new"
               onClick={() => setEditing(null)}
               className={cn(
                 "min-h-40 w-full cursor-pointer border-[3px] border-dashed border-border bg-transparent font-pixel text-[10px] text-text",

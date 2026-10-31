@@ -36,7 +36,13 @@ export function CartEmpty({ onRestore, suggestions }: Props) {
           ))}
         </div>
         <div className="flex flex-col items-center gap-3">
-          <h2 className="m-0 font-pixel text-[15px] leading-normal md:text-xl">INVENTÁRIO VAZIO</h2>
+          <h2
+            tabIndex={-1}
+            data-focus-key="empty"
+            className="m-0 font-pixel text-[15px] leading-normal outline-none md:text-xl"
+          >
+            INVENTÁRIO VAZIO
+          </h2>
           <p className="m-0 max-w-[460px] text-[15px] leading-relaxed text-text-muted md:text-base">
             Nenhum item coletado ainda. Bora explorar a loja?
           </p>

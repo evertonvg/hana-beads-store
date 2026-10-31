@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { logoutAction } from "@/app/(conta)/actions";
@@ -30,11 +30,26 @@ export function DeleteAccount() {
     handleSubmit,
     setError,
     reset,
+    setFocus,
     formState: { errors },
   } = useForm<DeleteAccountInput>({
     resolver: zodResolver(deleteAccountSchema),
     defaultValues: { password: "" },
   });
+
+  const trigger = useRef<HTMLButtonElement>(null);
+  const opened = useRef(false);
+
+  // The confirmation replaces the button: focus the password on open, give the button back on close.
+  useEffect(() => {
+    if (confirming) {
+      opened.current = true;
+      setFocus("password");
+    } else if (opened.current) {
+      opened.current = false;
+      trigger.current?.focus();
+    }
+  }, [confirming, setFocus]);
 
   const onSubmit = (values: DeleteAccountInput) => {
     setFormError(null);
@@ -127,6 +142,7 @@ export function DeleteAccount() {
         </form>
       ) : (
         <button
+          ref={trigger}
           type="button"
           onClick={() => setConfirming(true)}
           className={cn(

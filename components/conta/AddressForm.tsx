@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { saveAddressAction } from "@/app/(conta)/conta/actions";
 import { AddressFields } from "@/components/address/AddressFields";
@@ -47,6 +47,7 @@ export function AddressForm({ address, onDone, onCancel }: Props) {
     control,
     handleSubmit,
     setError,
+    setFocus,
     setValue,
     formState: { errors },
   } = useForm<AddressFormInput, unknown, AddressFormOutput>({
@@ -64,6 +65,9 @@ export function AddressForm({ address, onDone, onCancel }: Props) {
       isDefault: address?.isDefault ?? false,
     },
   });
+
+  // The form replaces the list: put the keyboard focus on its first field.
+  useEffect(() => setFocus("label"), [setFocus]);
 
   const onSubmit = (values: AddressFormOutput) => {
     setFormError(null);

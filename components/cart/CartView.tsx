@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
@@ -58,7 +58,20 @@ function CartContent({ suggestions }: { suggestions: ReactNode }) {
   const discountCents = draft.coupon?.discountCents ?? 0;
   const totals = computeTotals(priced, shipping ? shipping.priceCents : 0, discountCents);
 
+  // After a removal the focused button is gone: move to the next (or previous) line's remove
+  // button, or to the empty-cart heading.
+  const focusKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (focusKey.current === null) return;
+    const key = focusKey.current;
+    focusKey.current = null;
+    document.querySelector<HTMLElement>(`[data-focus-key="${key}"]`)?.focus();
+  }, [lines]);
+
   const remove = (key: string) => {
+    const at = priced.findIndex((l) => lineKey(l) === key);
+    const near = priced[at + 1] ?? priced[at - 1];
+    focusKey.current = near ? lineKey(near) : "empty";
     useCartStore.getState().remove(key);
     toast("Item removido.", {
       id: REMOVED_TOAST_ID,

@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/Icon";
 import { QuantityStepper } from "@/components/ui/QuantityStepper";
 import { cn } from "@/lib/cn";
 import type { PricedLine } from "@/lib/cart/totals";
+import { lineKey } from "@/lib/cart/types";
 import type { Rarity } from "@/lib/data/types";
 import { priceLabel } from "@/lib/format";
 
@@ -82,6 +83,7 @@ export function CartLine({ line, onQty, onRemove }: Props) {
             <button
               type="button"
               aria-label={`Remover ${product.name}`}
+              data-focus-key={lineKey(line)}
               onClick={onRemove}
               className={cn(
                 "flex min-h-11 cursor-pointer items-center justify-center text-text-muted",

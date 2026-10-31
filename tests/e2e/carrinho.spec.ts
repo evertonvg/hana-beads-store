@@ -116,8 +116,24 @@ test("cupom TESTE10 aplicado aparece no resumo e pode ser removido", async ({ pa
   await page.getByRole("button", { name: "APLICAR" }).click();
   await expect(summary(page).getByText("TESTE10")).toBeVisible();
   await expect(summary(page).getByText("[desconto]")).toBeVisible();
+  await expect(page.getByRole("button", { name: "REMOVER CUPOM" })).toBeFocused();
   await page.getByRole("button", { name: "REMOVER CUPOM" }).click();
   await expect(summary(page).getByText("TESTE10")).toHaveCount(0);
+  await expect(page.getByLabel("Código secreto (cupom)")).toBeFocused();
+});
+
+test("remover uma linha leva o foco para a próxima e, no fim, para o inventário vazio", async ({
+  page,
+}) => {
+  await openCart(page);
+  await page.getByRole("button", { name: "Remover GAROTA PIXEL" }).click();
+  await expect(items(page)).toHaveCount(1);
+  const last = items(page)
+    .first()
+    .getByRole("button", { name: /^Remover / });
+  await expect(last).toBeFocused();
+  await last.click();
+  await expect(page.getByRole("heading", { name: "INVENTÁRIO VAZIO" })).toBeFocused();
 });
 
 test("cupom EXPIRADO e cupom desconhecido mostram erro", async ({ page }) => {
