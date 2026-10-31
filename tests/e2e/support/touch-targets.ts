@@ -17,7 +17,11 @@ export async function expectTouchTargets(scope: Locator) {
   await scope.evaluateAll((roots) =>
     Promise.all(
       roots.flatMap((root) =>
-        root.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => null)),
+        root
+          .getAnimations({ subtree: true })
+          // Endless animations (the ticker) never finish: only wait for finite ones.
+          .filter((a) => Number.isFinite(a.effect?.getComputedTiming().endTime ?? 0))
+          .map((a) => a.finished.catch(() => null)),
       ),
     ),
   );

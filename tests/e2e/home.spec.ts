@@ -106,7 +106,9 @@ test.describe("newsletter", () => {
     await page.getByLabel("Seu e-mail").fill("falha@teste.dev");
     await page.getByRole("checkbox", { name: /novidades/i }).click();
     await page.getByRole("button", { name: "YES!" }).click();
-    await expect(page.getByRole("status")).toContainText("Não foi possível agora");
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Não foi possível agora" }),
+    ).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     // A later successful submit clears the previous error.
     await page.getByLabel("Seu e-mail").fill("ok@teste.dev");
