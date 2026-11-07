@@ -1,7 +1,9 @@
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { productFixtures } from "@/lib/data/mock/fixtures";
 import type { Database } from "@/lib/supabase/database.types";
+import { applyRememberPolicy, REMEMBER_COOKIE } from "@/lib/supabase/remember";
 
 import { fixtureId } from "../contract/fixture-ids";
 
@@ -89,4 +91,66 @@ export async function setPrices(prices: Record<string, number | null>): Promise<
     const { error } = await admin.from("products").update({ price_cents: cents }).eq("slug", slug);
     if (error) throw new Error(`setPrices: ${error.message}`);
   }
+}
+
+/** Seed users (supabase/seed.sql) and their passwords. */
+export const SEED_USERS = [
+  { id: "a0000000-0000-4000-8000-000000000001", password: "Admin@12345" },
+  { id: "a0000000-0000-4000-8000-000000000002", password: "Senha@123" },
+] as const;
+
+/** Back to the seeded accounts: drops every other auth user, saved carts and seed passwords. */
+export async function resetAuth(): Promise<void> {
+  const admin = serviceClient();
+  const seedIds = new Set<string>(SEED_USERS.map((u) => u.id));
+  const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  if (error) throw new Error(`resetAuth: ${error.message}`);
+  for (const u of data.users.filter((u) => !seedIds.has(u.id))) {
+    const del = await admin.auth.admin.deleteUser(u.id);
+    if (del.error) throw new Error(`resetAuth: ${del.error.message}`);
+  }
+  for (const { id, password } of SEED_USERS) {
+    const upd = await admin.auth.admin.updateUserById(id, { password });
+    if (upd.error) throw new Error(`resetAuth: ${upd.error.message}`);
+  }
+  const carts = await admin.from("saved_carts").delete().not("user_id", "is", null);
+  if (carts.error) throw new Error(`resetAuth: ${carts.error.message}`);
+}
+
+type JarCookie = { value: string; options: CookieOptions };
+
+/** One browser's cookie jar, keeping the options each cookie was last written with. */
+export function cookieJar() {
+  const jar = new Map<string, JarCookie>();
+  return {
+    jar,
+    getAll: () => [...jar].map(([name, { value }]) => ({ name, value })),
+    set(name: string, value: string, options: CookieOptions = {}) {
+      if (value === "" || options.maxAge === 0) jar.delete(name);
+      else jar.set(name, { value, options });
+    },
+  };
+}
+export type CookieJar = ReturnType<typeof cookieJar>;
+
+/**
+ * Cookie-bound client over `jar`, built like lib/supabase/server.ts (publishable key) or
+ * auth-client.ts (secret key), which need a Next request. `pp_remember` is read once, here.
+ */
+export function jarClient(jar: CookieJar, key: "publishable" | "secret"): SupabaseClient<Database> {
+  const remember = jar.jar.has(REMEMBER_COOKIE);
+  return createServerClient<Database>(
+    required("NEXT_PUBLIC_SUPABASE_URL"),
+    required(key === "secret" ? "SUPABASE_SECRET_KEY" : "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
+    {
+      cookies: {
+        getAll: () => jar.getAll(),
+        setAll(cookiesToSet) {
+          for (const { name, value, options } of cookiesToSet) {
+            jar.set(name, value, applyRememberPolicy(options, remember));
+          }
+        },
+      },
+    },
+  );
 }

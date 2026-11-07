@@ -26,7 +26,7 @@ insert into auth.users (
    '{"provider":"email","providers":["email"]}', '{"name":"Admin Pixel Perfect","terms_version":"seed"}', now(), now(), '', '', '', ''),
   ('a0000000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
    'ana@teste.dev', extensions.crypt('Senha@123', extensions.gen_salt('bf')), now(),
-   '{"provider":"email","providers":["email"]}', '{"name":"Ana Teste","phone":"11999990000","terms_version":"seed"}', now(), now(), '', '', '', '');
+   '{"provider":"email","providers":["email"]}', '{"name":"Ana Souza","phone":"11999990000","terms_version":"seed"}', now(), now(), '', '', '', '');
 
 insert into auth.identities (id, user_id, provider, provider_id, identity_data, last_sign_in_at, created_at, updated_at) values
   (gen_random_uuid(), 'a0000000-0000-4000-8000-000000000001', 'email', 'a0000000-0000-4000-8000-000000000001',

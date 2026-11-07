@@ -13,6 +13,8 @@ export type AuthContractEnv = Omit<ContractEnv<AuthPort>, "make"> & {
   readInbox: (email: string) => Promise<InboxMessage[]>;
   /** Runs `fn` with a port bound to a fresh, empty cookie jar (one browser). */
   withSession: <T>(fn: (auth: AuthPort) => Promise<T>) => Promise<T>;
+  /** The adapter can revoke other live sessions (the mock's sealed cookies cannot be revoked). */
+  revokesOtherSessions?: boolean;
 };
 
 const PASSWORD = "Senha@123";
@@ -168,6 +170,21 @@ export function describeAuthContract(env: AuthContractEnv) {
         });
       });
     });
+
+    it.skipIf(!env.revokesOtherSessions)(
+      "changing the password signs every other session out",
+      async () => {
+        await env.withSession(async (other) => {
+          expect(await other.signIn("ana@teste.dev", PASSWORD, true)).not.toBeNull();
+          await env.withSession(async (auth) => {
+            expect(await auth.signIn("ana@teste.dev", PASSWORD, false)).not.toBeNull();
+            expect(await auth.updatePassword("Nova@1234")).toEqual({ ok: true });
+            expect(await auth.currentUser()).toMatchObject({ email: "ana@teste.dev" });
+          });
+          expect(await other.currentUser()).toBeNull();
+        });
+      },
+    );
 
     it("refuses to update the password without a session", async () => {
       await env.withSession(async (auth) => {

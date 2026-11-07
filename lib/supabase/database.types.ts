@@ -181,7 +181,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "escape_like":
+            "apply_signup_metadata":
+{ Args: { "p_meta": Json,"p_user_id": string }; Returns: undefined
+                           },
+"escape_like":
 { Args: { "": string }; Returns: string
                            },
 "immutable_unaccent":
@@ -189,6 +192,9 @@ isOneToOne: false
                            },
 "is_admin":
 { Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"pending_user_id":
+{ Args: { "p_email": string }; Returns: string
                            },
 "rate_limit_hit":
 { Args: { "p_key": string,"p_max": number,"p_window_seconds": number }; Returns: boolean
