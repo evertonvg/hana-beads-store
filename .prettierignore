@@ -6,3 +6,5 @@ storybook-static/
 playwright-report/
 test-results/
 .superpowers/
+
+lib/supabase/database.types.ts

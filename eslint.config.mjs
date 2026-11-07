@@ -50,6 +50,7 @@ const eslintConfig = defineConfig([
     "playwright-report/**",
     "test-results/**",
     "docs/design/**",
+    "lib/supabase/database.types.ts",
     ".superpowers/**",
   ]),
   // Must stay last: turns off rules that conflict with Prettier.
