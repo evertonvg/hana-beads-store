@@ -3,7 +3,7 @@
  * Run: node --experimental-strip-types scripts/fixtures-to-seed.ts
  * Ids are UUID v5 of the slug (tests/contract/fixture-ids.ts). Prices stay null (never invented).
  */
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -56,5 +56,16 @@ insert into public.products (
 ${rows.map((r) => `  (${r})`).join(",\n")};
 `;
 
-writeFileSync(resolve(root, "supabase/seed.sql"), sql);
+// Keep the hand-written users block (everything from its marker on) across regenerations.
+const seedPath = resolve(root, "supabase/seed.sql");
+const marker = "-- BEGIN USERS";
+const previous = existsSync(seedPath) ? readFileSync(seedPath, "utf8") : "";
+const usersAt = previous.indexOf(marker);
+writeFileSync(
+  seedPath,
+  usersAt === -1
+    ? sql
+    : `${sql}
+${previous.slice(usersAt)}`,
+);
 console.warn(`seed.sql: ${rows.length} products`);

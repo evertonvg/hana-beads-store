@@ -13,3 +13,25 @@ insert into public.products (
   ('4e04ebfc-819d-5cc6-a50f-0d4d533bf9e1', 'planeta-pixel', 'PLANETA PIXEL', 'Ilustração de chaveiro de planeta em pixel.', null, null, false, 0, array['icones']::text[], 'Mini ícones', array['roxo']::text[], '[]'::jsonb, '{"rows":[".........","...###...","..#####..",".#######.","yyyyyyyyy",".#######.","..#####..","...###...","........."],"palette":{"#":"#9B5CFF","y":"#FFD23F"},"alt":"Ilustração de chaveiro de planeta em pixel"}'::jsonb, true, null, null, '[]'::jsonb, 7, timestamptz '2026-01-01 00:00:00+00' + interval '6 seconds'),
   ('42893350-3959-575d-9eb2-4ca6592fba0d', 'cacto-pixel', 'CACTO PIXEL', 'Ilustração de chaveiro de cacto em pixel.', null, null, false, 5, array['icones']::text[], 'Mini ícones', array['verde']::text[], '[]'::jsonb, '{"rows":["....#....","....#....","#...#....","#...#..#.","#####..#.","....#####","....#....","...yyy...","...yyy..."],"palette":{"#":"#2FBF71","y":"#C8693C"},"alt":"Ilustração de chaveiro de cacto em pixel"}'::jsonb, true, null, null, '[]'::jsonb, 8, timestamptz '2026-01-01 00:00:00+00' + interval '7 seconds'),
   ('740d4d91-57d3-518d-a911-cbdfc0c15e92', 'coracao-inicial', 'CORAÇÃO INICIAL', 'Ilustração de chaveiro de coração vermelho com a letra A.', null, null, false, 5, array['iniciais', 'icones']::text[], 'Iniciais · Mini ícones', array['vermelho']::text[], '[]'::jsonb, '{"rows":[".##...##.","####.####","#########","#########",".#######.","..#####..","...###...","....#....","........."],"palette":{"#":"#E8302A"},"alt":"Ilustração de chaveiro de coração vermelho com a letra A","letter":"A"}'::jsonb, true, null, null, '[]'::jsonb, 9, timestamptz '2026-01-01 00:00:00+00' + interval '8 seconds');
+
+-- BEGIN USERS (hand-written, preserved by scripts/fixtures-to-seed.ts). Local development only, never production.
+-- admin@pixelperfect.local / Admin@12345 (admin); ana@teste.dev / Senha@123 (regular, confirmed, for E2E).
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+) values
+  ('a0000000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'admin@pixelperfect.local', extensions.crypt('Admin@12345', extensions.gen_salt('bf')), now(),
+   '{"provider":"email","providers":["email"]}', '{"name":"Admin Pixel Perfect","terms_version":"seed"}', now(), now(), '', '', '', ''),
+  ('a0000000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'ana@teste.dev', extensions.crypt('Senha@123', extensions.gen_salt('bf')), now(),
+   '{"provider":"email","providers":["email"]}', '{"name":"Ana Teste","phone":"11999990000","terms_version":"seed"}', now(), now(), '', '', '', '');
+
+insert into auth.identities (id, user_id, provider, provider_id, identity_data, last_sign_in_at, created_at, updated_at) values
+  (gen_random_uuid(), 'a0000000-0000-4000-8000-000000000001', 'email', 'a0000000-0000-4000-8000-000000000001',
+   '{"sub":"a0000000-0000-4000-8000-000000000001","email":"admin@pixelperfect.local","email_verified":true}', now(), now(), now()),
+  (gen_random_uuid(), 'a0000000-0000-4000-8000-000000000002', 'email', 'a0000000-0000-4000-8000-000000000002',
+   '{"sub":"a0000000-0000-4000-8000-000000000002","email":"ana@teste.dev","email_verified":true}', now(), now(), now());
+
+insert into public.admins (user_id) values ('a0000000-0000-4000-8000-000000000001');
