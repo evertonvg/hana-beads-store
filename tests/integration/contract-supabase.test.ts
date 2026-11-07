@@ -3,12 +3,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CartData } from "@/lib/cart/types";
 import { createSupabaseAuth } from "@/lib/data/supabase/auth";
+import {
+  createSupabaseAccountReads,
+  NotAvailableYetError,
+} from "@/lib/data/supabase/account-reads";
+import { createSupabaseEngagement } from "@/lib/data/supabase/engagement";
+import { createSupabaseNewsletter } from "@/lib/data/supabase/newsletter";
+import { createSupabaseRateLimit } from "@/lib/data/supabase/rate-limit";
 import { createSupabaseCatalog } from "@/lib/data/supabase/catalog";
 import { REMEMBER_COOKIE, REMEMBER_MAX_AGE } from "@/lib/supabase/remember";
 import { createSupabasePublicClient } from "@/lib/supabase/public";
 
 import { describeAuthContract } from "../contract/auth.contract";
 import { describeCatalogContract } from "../contract/catalog.contract";
+import { describeEngagementContract } from "../contract/engagement.contract";
+import { describeNewsletterContract } from "../contract/newsletter.contract";
+import { describeRateLimitContract } from "../contract/rate-limit.contract";
 import { supabaseIds } from "../contract/fixture-ids";
 import { clearInbox, latestLink, readInbox } from "./mailpit";
 import {
@@ -19,6 +29,7 @@ import {
   resetDb,
   serviceClient,
   setPrices,
+  signedInClient,
 } from "./support";
 
 describeCatalogContract(
@@ -31,6 +42,70 @@ describeCatalogContract(
   },
   supabaseIds,
 );
+
+const ANA_ID = "a0000000-0000-4000-8000-000000000002";
+const ADMIN_ID = "a0000000-0000-4000-8000-000000000001";
+const CREDENTIALS = {
+  [ANA_ID]: { email: "ana@teste.dev", password: "Senha@123" },
+  [ADMIN_ID]: { email: "admin@pixelperfect.local", password: "Admin@12345" },
+};
+
+describeEngagementContract(
+  {
+    name: "supabase",
+    reset: resetDb,
+    users: [ANA_ID, ADMIN_ID],
+    forUser: (userId) => {
+      const { email, password } = CREDENTIALS[userId as keyof typeof CREDENTIALS];
+      let client: ReturnType<typeof signedInClient> | undefined;
+      return createSupabaseEngagement({
+        getClient: () => (client ??= signedInClient(email, password)),
+      });
+    },
+    alertCount: async (email, productId) => {
+      const { data, error } = await serviceClient()
+        .from("stock_alerts")
+        .select("id")
+        .eq("email", email)
+        .eq("product_id", productId);
+      if (error) throw new Error(error.message);
+      return data.length;
+    },
+  },
+  supabaseIds,
+);
+
+describe("supabase account reads", () => {
+  const reads = () =>
+    createSupabaseAccountReads({ getClient: () => signedInClient("ana@teste.dev", "Senha@123") });
+
+  it("reads the signed-in user's profile, lists and connections", async () => {
+    const account = reads();
+    expect(await account.profile(ANA_ID)).toMatchObject({ id: ANA_ID, email: "ana@teste.dev" });
+    expect(await account.connections(ANA_ID)).toEqual([]);
+    expect(Array.isArray(await account.addresses(ANA_ID))).toBe(true);
+    expect(Array.isArray(await account.consents(ANA_ID))).toBe(true);
+  });
+
+  it("refuses another user's id and does not offer writes yet", async () => {
+    const account = reads();
+    await expect(account.profile(ADMIN_ID)).rejects.toThrow("session mismatch");
+    await expect(account.deleteAddress(ANA_ID, "x")).rejects.toBeInstanceOf(NotAvailableYetError);
+  });
+});
+
+describeNewsletterContract({
+  name: "supabase",
+  make: () =>
+    createSupabaseNewsletter({ getClient: () => Promise.resolve(createSupabasePublicClient()) }),
+  reset: resetDb,
+});
+
+describeRateLimitContract({
+  name: "supabase",
+  make: () => createSupabaseRateLimit({ getAdmin: serviceClient }),
+  reset: resetDb,
+});
 
 /** The Supabase auth port bound to its own fresh cookie jar (one browser). */
 function authInJar(

@@ -1,11 +1,17 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { createMockEngagement } from "@/lib/data/mock/engagement";
+import { createMockNewsletter } from "@/lib/data/mock/newsletter";
+import { createMockRateLimit } from "@/lib/data/mock/rate-limit";
 import { createMockCatalog } from "@/lib/data/mock/catalog";
 import { productFixtures } from "@/lib/data/mock/fixtures";
 import { getMockStore } from "@/lib/data/mock/store";
 
 import { describeAuthContract } from "../contract/auth.contract";
 import { describeCatalogContract } from "../contract/catalog.contract";
+import { describeEngagementContract } from "../contract/engagement.contract";
+import { describeNewsletterContract } from "../contract/newsletter.contract";
+import { describeRateLimitContract } from "../contract/rate-limit.contract";
 import type { FixtureIds } from "../contract/fixture-ids";
 import { mockAuthInJar } from "./memory-cookies";
 
@@ -64,6 +70,28 @@ describeAuthContract({
     ),
   withSession: (fn) => fn(mockAuthInJar()),
 });
+
+const resetMock = () => {
+  getMockStore().reset();
+  return Promise.resolve();
+};
+
+describeEngagementContract(
+  {
+    name: "mock",
+    reset: resetMock,
+    users: ["a0000000-0000-4000-8000-000000000002", "a0000000-0000-4000-8000-000000000001"],
+    forUser: () => createMockEngagement(),
+    alertCount: (email, productId) =>
+      Promise.resolve(
+        getMockStore().stockAlerts.filter((a) => a.email === email && a.productId === productId)
+          .length,
+      ),
+  },
+  mockIds,
+);
+describeNewsletterContract({ name: "mock", make: createMockNewsletter, reset: resetMock });
+describeRateLimitContract({ name: "mock", make: createMockRateLimit, reset: resetMock });
 
 describe("fixtures", () => {
   it("has 9 products, all without price, 3 with photos", () => {

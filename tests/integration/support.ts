@@ -43,6 +43,16 @@ export async function signedInClient(
 export async function resetDb(): Promise<void> {
   const admin = serviceClient();
   const base = Date.parse("2026-01-01T00:00:00Z");
+  // Dependents first, then the engagement data tests create.
+  for (const [table, col] of [
+    ["favorites", "product_id"],
+    ["stock_alerts", "product_id"],
+    ["newsletter_subscriptions", "email"],
+    ["rate_limits", "key"],
+  ] as const) {
+    const r = await admin.from(table).delete().not(col, "is", null);
+    if (r.error) throw new Error(`resetDb: ${r.error.message}`);
+  }
   const del = await admin.from("products").delete().not("id", "is", null);
   if (del.error) throw new Error(`resetDb: ${del.error.message}`);
   const ins = await admin.from("products").insert(
