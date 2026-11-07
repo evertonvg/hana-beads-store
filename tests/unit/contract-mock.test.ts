@@ -25,6 +25,12 @@ describeCatalogContract(
       getMockStore().reset();
       return Promise.resolve();
     },
+    setPrices: (prices) => {
+      for (const p of getMockStore().products) {
+        if (p.slug in prices) p.priceCents = prices[p.slug];
+      }
+      return Promise.resolve();
+    },
     addFiller: (n) => {
       const store = getMockStore();
       store.products.push(

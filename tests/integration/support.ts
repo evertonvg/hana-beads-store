@@ -81,3 +81,12 @@ export async function addFillerProducts(count: number): Promise<void> {
   const { error } = await serviceClient().from("products").insert(rows);
   if (error) throw new Error(`addFillerProducts: ${error.message}`);
 }
+
+/** Sets price_cents per product slug (null clears it). */
+export async function setPrices(prices: Record<string, number | null>): Promise<void> {
+  const admin = serviceClient();
+  for (const [slug, cents] of Object.entries(prices)) {
+    const { error } = await admin.from("products").update({ price_cents: cents }).eq("slug", slug);
+    if (error) throw new Error(`setPrices: ${error.message}`);
+  }
+}

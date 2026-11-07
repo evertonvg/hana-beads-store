@@ -3,7 +3,7 @@ import { createSupabasePublicClient } from "@/lib/supabase/public";
 
 import { describeCatalogContract } from "../contract/catalog.contract";
 import { supabaseIds } from "../contract/fixture-ids";
-import { addFillerProducts, resetDb } from "./support";
+import { addFillerProducts, resetDb, setPrices } from "./support";
 
 describeCatalogContract(
   {
@@ -11,6 +11,7 @@ describeCatalogContract(
     make: () => createSupabaseCatalog({ getClient: createSupabasePublicClient }),
     reset: resetDb,
     addFiller: addFillerProducts,
+    setPrices,
   },
   supabaseIds,
 );

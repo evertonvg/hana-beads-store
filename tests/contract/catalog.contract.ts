@@ -16,16 +16,20 @@ const defaults: ShopQuery = {
   pagina: 1,
 };
 
+/** Adapter hooks the catalog contract needs beyond make/reset. */
+export type CatalogContractEnv = ContractEnv<CatalogPort> & {
+  addFiller: (n: number) => Promise<void>;
+  /** Sets price_cents per fixture slug (null clears it). */
+  setPrices: (prices: Record<string, number | null>) => Promise<void>;
+};
+
 const catalogOrder = productFixtures.map((p) => p.slug);
 
 /**
  * Behaviour every CatalogPort adapter must share. `addFiller(n)` adds n extra products (no featured
  * rank) so pagination can be exercised past the 9 fixtures.
  */
-export function describeCatalogContract(
-  env: ContractEnv<CatalogPort> & { addFiller: (n: number) => Promise<void> },
-  ids: FixtureIds,
-) {
+export function describeCatalogContract(env: CatalogContractEnv, ids: FixtureIds) {
   describe(`catalog contract (${env.name})`, () => {
     const catalog = env.make();
     const slugs = (r: { items: { slug: string }[] }) => r.items.map((p) => p.slug);
@@ -120,9 +124,34 @@ export function describeCatalogContract(
         ]);
       });
 
-      it("orders by price (all null: catalog order) in both directions", async () => {
-        expect(slugs(await catalog.list({ ...defaults, ordem: "menor" }))).toEqual(catalogOrder);
-        expect(slugs(await catalog.list({ ...defaults, ordem: "maior" }))).toEqual(catalogOrder);
+      it("orders by price with nulls last, keeping catalog order among ties", async () => {
+        await env.setPrices({
+          "garota-pixel": 500,
+          "estrela-numero": 100,
+          "estrela-inicial": null,
+          "sorvete-pixel": 300,
+        });
+        const nulls = catalogOrder.filter(
+          (s) => !["garota-pixel", "estrela-numero", "sorvete-pixel"].includes(s),
+        );
+        expect(slugs(await catalog.list({ ...defaults, ordem: "menor" }))).toEqual([
+          "estrela-numero",
+          "sorvete-pixel",
+          "garota-pixel",
+          ...nulls,
+        ]);
+        expect(slugs(await catalog.list({ ...defaults, ordem: "maior" }))).toEqual([
+          "garota-pixel",
+          "sorvete-pixel",
+          "estrela-numero",
+          ...nulls,
+        ]);
+      });
+
+      it("restores null prices after reset", async () => {
+        await env.setPrices({ "garota-pixel": 500 });
+        await env.reset();
+        expect((await catalog.bySlug("garota-pixel"))?.priceCents).toBeNull();
       });
     });
 
