@@ -24,6 +24,8 @@ const config = {
         "deps",
         "tooling",
         "e2e",
+        "db",
+        "spec",
       ],
     ],
   },

@@ -54,4 +54,37 @@ describe("serverEnv", () => {
       serverEnvSchema.safeParse({ DATA_SOURCE: "mock", SESSION_SECRET: "curto" }).success,
     ).toBe(false);
   });
+
+  const supabase = {
+    DATA_SOURCE: "supabase",
+    NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_x",
+    SUPABASE_SECRET_KEY: "sb_secret_x",
+    REVALIDATE_SECRET: "r".repeat(32),
+  };
+
+  it("accepts supabase with its variables", () => {
+    expect(serverEnvSchema.safeParse(supabase).success).toBe(true);
+  });
+
+  it("rejects supabase without SUPABASE_SECRET_KEY", () => {
+    const rest: Record<string, string> = { ...supabase };
+    delete rest.SUPABASE_SECRET_KEY;
+    expect(serverEnvSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("rejects supabase with a short REVALIDATE_SECRET", () => {
+    expect(serverEnvSchema.safeParse({ ...supabase, REVALIDATE_SECRET: "curto" }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects mock without SESSION_SECRET", () => {
+    expect(serverEnvSchema.safeParse({ DATA_SOURCE: "mock" }).success).toBe(false);
+  });
+
+  it("defaults CLIENT_IP_HEADER to x-forwarded-for", () => {
+    const parsed = serverEnvSchema.parse({ DATA_SOURCE: "mock", SESSION_SECRET: secret });
+    expect(parsed.CLIENT_IP_HEADER).toBe("x-forwarded-for");
+  });
 });

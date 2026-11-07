@@ -14,7 +14,7 @@ const env = {
   SESSION_SECRET: "unit-secret-unit-secret-unit-secret-00",
 };
 
-// *.test.ts run in node, *.test.tsx in jsdom
+// *.test.ts run in node, *.test.tsx in jsdom; tests/integration needs a running `supabase start`
 export default defineConfig({
   test: {
     projects: [
@@ -35,6 +35,17 @@ export default defineConfig({
           include: ["tests/unit/**/*.test.tsx"],
           setupFiles: ["tests/unit/setup-dom.ts"],
           env,
+        },
+      },
+      {
+        ...shared,
+        test: {
+          name: "integration",
+          environment: "node",
+          include: ["tests/integration/**/*.test.ts"],
+          // Exports the local stack URL and keys (from `supabase status`) into process.env
+          globalSetup: ["tests/integration/global-setup.ts"],
+          fileParallelism: false,
         },
       },
     ],

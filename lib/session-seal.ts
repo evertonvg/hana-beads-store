@@ -8,11 +8,17 @@ export const SHORT_SECONDS = 24 * 60 * 60;
 
 export type SessionPayload = { userId?: string; expiresAt?: number };
 
+/** `SESSION_SECRET` is only validated as present when `DATA_SOURCE=mock`; this adapter needs it. */
+function sessionSecret(): string {
+  if (!env.SESSION_SECRET) throw new Error("SESSION_SECRET is required for the mock session");
+  return env.SESSION_SECRET;
+}
+
 /** Same options everywhere (server components, actions and the proxy). `remember` only matters when saving. */
 export function sessionOptions(remember = false): SessionOptions {
   return {
     cookieName: SESSION_COOKIE,
-    password: env.SESSION_SECRET,
+    password: sessionSecret(),
     ttl: remember ? REMEMBER_SECONDS : 0,
     cookieOptions: {
       httpOnly: true,
@@ -37,7 +43,7 @@ export function liveUserId(payload: SessionPayload): string | null {
 export async function userIdFromSeal(seal: string | undefined): Promise<string | null> {
   if (!seal) return null;
   try {
-    const payload = await unsealData<SessionPayload>(seal, { password: env.SESSION_SECRET });
+    const payload = await unsealData<SessionPayload>(seal, { password: sessionSecret() });
     return liveUserId(payload);
   } catch {
     return null;

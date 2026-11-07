@@ -27,12 +27,51 @@ export const publicEnvSchema = z.object({
 /**
  * Server-only variables. `DATA_SOURCE` has no default on purpose: it gates the `/api/__mock__/*`
  * test routes, so a deploy that forgets it must fail to boot instead of exposing them.
+ * Every mode-specific field is optional here; `refineServerEnv` requires the ones each mode needs.
  */
-export const serverEnvSchema = z.object({
-  DATA_SOURCE: z.enum(["mock"]),
-  // iron-session requires a secret of 32+ characters
-  SESSION_SECRET: z.string().min(32),
-});
+const supabasePublicShape = {
+  NEXT_PUBLIC_SUPABASE_URL: z.url().optional(),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+};
+
+export const serverEnvShape = {
+  DATA_SOURCE: z.enum(["mock", "supabase"]),
+  // iron-session (mock adapter only) requires a secret of 32+ characters
+  SESSION_SECRET: z.string().min(32).optional(),
+  ...supabasePublicShape,
+  SUPABASE_SECRET_KEY: z.string().min(1).optional(),
+  REVALIDATE_SECRET: z.string().min(32).optional(),
+  CLIENT_IP_HEADER: z.string().min(1).default("x-forwarded-for"),
+};
+
+const supabaseRequired = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  "SUPABASE_SECRET_KEY",
+  "REVALIDATE_SECRET",
+] as const;
+
+/** Cross-field rule: each data source requires its own variables. */
+export function refineServerEnv(
+  value: {
+    DATA_SOURCE: "mock" | "supabase";
+    SESSION_SECRET?: string | undefined;
+  } & Partial<Record<(typeof supabaseRequired)[number], string | undefined>>,
+  ctx: z.RefinementCtx,
+) {
+  const required = value.DATA_SOURCE === "mock" ? (["SESSION_SECRET"] as const) : supabaseRequired;
+  for (const key of required) {
+    if (!value[key]) {
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: `${key} is required when DATA_SOURCE=${value.DATA_SOURCE}`,
+      });
+    }
+  }
+}
+
+export const serverEnvSchema = z.object(serverEnvShape).superRefine(refineServerEnv);
 
 type ParsedPublicEnv = z.output<typeof publicEnvSchema>;
 
@@ -61,8 +100,15 @@ export function toPublicEnv(parsed: ParsedPublicEnv): PublicEnv {
 }
 
 export const env = createEnv({
-  server: serverEnvSchema.shape,
-  client: publicEnvSchema.shape,
+  // t3-env rejects NEXT_PUBLIC_ keys on the server side, so the two public Supabase keys live in `client`.
+  server: {
+    DATA_SOURCE: serverEnvShape.DATA_SOURCE,
+    SESSION_SECRET: serverEnvShape.SESSION_SECRET,
+    SUPABASE_SECRET_KEY: serverEnvShape.SUPABASE_SECRET_KEY,
+    REVALIDATE_SECRET: serverEnvShape.REVALIDATE_SECRET,
+    CLIENT_IP_HEADER: serverEnvShape.CLIENT_IP_HEADER,
+  },
+  client: { ...publicEnvSchema.shape, ...supabasePublicShape },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     NEXT_PUBLIC_CONTACT_CHANNEL: process.env.NEXT_PUBLIC_CONTACT_CHANNEL,
@@ -72,7 +118,12 @@ export const env = createEnv({
     NEXT_PUBLIC_PARALLAX_INTENSITY: process.env.NEXT_PUBLIC_PARALLAX_INTENSITY,
     NEXT_PUBLIC_AUTH_APPLE: process.env.NEXT_PUBLIC_AUTH_APPLE,
     NEXT_PUBLIC_ANALYTICS_SRC: process.env.NEXT_PUBLIC_ANALYTICS_SRC,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   },
+  // The cross-field rule only applies where the server variables exist (the browser sees client keys only).
+  createFinalSchema: (shape, isServer) =>
+    isServer ? z.object(shape).superRefine(refineServerEnv) : z.object(shape),
   emptyStringAsUndefined: true,
 });
 
