@@ -14,4 +14,13 @@ describe("applyRememberPolicy", () => {
     expect(out.maxAge).toBe(2_592_000);
     expect(REMEMBER_MAX_AGE).toBe(2_592_000);
   });
+
+  it.each([true, false])("keeps cookie deletions unchanged (remember=%s)", (remember) => {
+    expect(applyRememberPolicy({ maxAge: 0, path: "/" }, remember)).toEqual({
+      maxAge: 0,
+      path: "/",
+    });
+    const past = new Date(0);
+    expect(applyRememberPolicy({ expires: past, path: "/" }, remember).expires).toBe(past);
+  });
 });
