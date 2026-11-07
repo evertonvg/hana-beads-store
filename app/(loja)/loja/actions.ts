@@ -1,6 +1,7 @@
 "use server";
 
 import { getData } from "@/lib/data";
+import { allowAttempt, RATE_LIMITED } from "@/lib/rate-limit";
 import { getSession } from "@/lib/session";
 import { fieldErrorsFrom, type FormState, GENERIC_ERROR } from "@/lib/validation/form-state";
 import { stockAlertSchema } from "@/lib/validation/stock-alert";
@@ -58,6 +59,9 @@ export async function stockAlertAction(_prev: FormState, formData: FormData): Pr
   }
 
   try {
+    if (!(await allowAttempt("aviso_estoque", email))) {
+      return { status: "error", message: RATE_LIMITED };
+    }
     const [product] = await getData().catalog.byIds([productId]);
     if (!product) return { status: "error", message: "Item não encontrado." };
     if (product.stock > 0) return { status: "error", message: "Este item já está disponível." };

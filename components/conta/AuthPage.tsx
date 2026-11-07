@@ -4,10 +4,10 @@ import { publicEnv } from "@/lib/env";
 import { AuthScreen, type AuthMode } from "./AuthScreen";
 import type { AuthTab } from "./AuthTabs";
 
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+export type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 /** Placeholder with the real page's height: no inputs, so nothing can be typed into it. */
-function AuthFallback() {
+export function AuthFallback() {
   return (
     <div className="mx-auto w-full max-w-[480px] px-4 pt-6 md:px-6 md:pt-[72px]">
       <div aria-hidden="true" className="min-h-[640px]" />
@@ -15,7 +15,8 @@ function AuthFallback() {
   );
 }
 
-const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+/** First value of a query parameter that may repeat. */
+export const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 async function Screen({
   searchParams,

@@ -1,6 +1,7 @@
 "use server";
 
 import { getData } from "@/lib/data";
+import { allowAttempt, RATE_LIMITED } from "@/lib/rate-limit";
 import { fieldErrorsFrom, type FormState } from "@/lib/validation/form-state";
 import {
   NEWSLETTER_CONSENT_VERSION,
@@ -19,6 +20,9 @@ export async function subscribeNewsletter(input: NewsletterInput): Promise<FormS
     };
   }
   try {
+    if (!(await allowAttempt("newsletter", parsed.data.email))) {
+      return { status: "error", message: RATE_LIMITED };
+    }
     await getData().newsletter.subscribe({
       email: parsed.data.email,
       consent: true,

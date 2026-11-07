@@ -4,8 +4,14 @@ import type { Order } from "@/lib/data/types";
 import { formatOrderNumber, totalLabel } from "@/lib/format";
 import { ClearCartOnce } from "./ClearCartOnce";
 
+type Props = {
+  order: Pick<Order, "id" | "number" | "totalCents">;
+  /** "Save my data" was asked at checkout: an account waits for its confirmation link. */
+  accountPending?: boolean;
+};
+
 /** Order confirmed, "STAGE CLEAR!" (Sucesso.dc.html). Empties the cart once. */
-export function ConfirmedPanel({ order }: { order: Pick<Order, "id" | "number" | "totalCents"> }) {
+export function ConfirmedPanel({ order, accountPending = false }: Props) {
   return (
     <div className="mx-auto flex w-full max-w-[900px] flex-col items-center gap-8 px-4 pt-10 pb-24 text-center md:gap-9 md:px-6 md:pt-[88px]">
       <ClearCartOnce orderId={order.id} />
@@ -22,6 +28,11 @@ export function ConfirmedPanel({ order }: { order: Pick<Order, "id" | "number" |
       <p className="m-0 max-w-[560px] text-base leading-relaxed text-text-muted md:text-lg">
         Pedido recebido! Agora é com a gente: suas continhas já estão na fila de produção.
       </p>
+      {accountPending ? (
+        <p className="m-0 max-w-[560px] text-base leading-relaxed text-yellow">
+          Enviamos um link para ativar sua conta.
+        </p>
+      ) : null}
 
       <section
         aria-label="Resumo do pedido"

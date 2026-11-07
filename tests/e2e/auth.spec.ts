@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, expectA11y, login, snap, test } from "./support/fixtures";
 import { gotoHydrated } from "./support/hydration";
 import { expectTouchTargets } from "./support/touch-targets";
@@ -40,6 +40,22 @@ async function fillSignup(
 }
 
 const terms = (page: Page) => page.getByRole("checkbox", { name: /Li e concordo/ });
+
+type MailMessage = { to: string; kind: string; link: string };
+
+async function inboxOf(request: APIRequestContext, email: string): Promise<MailMessage[]> {
+  const res = await request.get(`/api/__mock__/inbox?email=${encodeURIComponent(email)}`);
+  return (await res.json()) as MailMessage[];
+}
+
+/** Signs up nova@teste.dev through the form and waits for "CONFIRA SEU E-MAIL". */
+async function signUpNova(page: Page, email = "nova@teste.dev") {
+  await gotoHydrated(page, "/cadastro");
+  await fillSignup(page, { email });
+  await terms(page).click();
+  await submitSignup(page).click();
+  await expect(page.getByRole("heading", { name: "CONFIRA SEU E-MAIL" })).toBeVisible();
+}
 const marketing = (page: Page) => page.getByRole("checkbox", { name: /novidades e lançamentos/ });
 
 test.describe("entrar", () => {
@@ -109,11 +125,12 @@ test.describe("entrar", () => {
     await expectSignedInHeader(page, isMobile);
   });
 
-  test("o login social também atualiza o cabeçalho sem recarregar", async ({ page, isMobile }) => {
+  // The callback route (which creates the session and follows `next`) lands in a later task:
+  // until then these check that the button leaves for the provider URL with the safe next.
+  test("o login social vai para a URL do provedor levando o next", async ({ page }) => {
     await gotoHydrated(page, "/entrar?next=%2Floja");
     await page.getByRole("button", { name: "Continuar com Google" }).click();
-    await expect(page).toHaveURL(/\/loja$/);
-    await expectSignedInHeader(page, isMobile);
+    await expect(page).toHaveURL(/\/auth\/callback\?code=mock-google&next=%2Floja$/);
   });
 
   for (const evil of ["//evil.com", "/\\evil.com", "https://evil.com", "/%2F%2Fevil.com"]) {
@@ -149,11 +166,28 @@ test.describe("entrar", () => {
     expect(days).toBeLessThanOrEqual(30);
   });
 
-  test("login social entra como a ana", async ({ page, isMobile }) => {
+  test("login social sem next vai para o provedor com next=/conta", async ({ page }) => {
     await gotoHydrated(page, "/entrar");
-    await page.getByRole("button", { name: "Continuar com Google" }).click();
-    await expect(page).toHaveURL(/\/conta$/);
-    await expectSignedInHeader(page, isMobile);
+    await page.getByRole("button", { name: "Continuar com Facebook" }).click();
+    await expect(page).toHaveURL(/\/auth\/callback\?code=mock-facebook&next=%2Fconta$/);
+  });
+
+  test("conta não confirmada pede a confirmação e oferece REENVIAR LINK", async ({
+    page,
+    request,
+  }) => {
+    await signUpNova(page);
+    await gotoHydrated(page, "/entrar");
+    await page.getByLabel("E-mail", { exact: true }).fill("nova@teste.dev");
+    await password(page).fill("Senha@123");
+    await submitLogin(page).click();
+    await expect(page.getByText("Confirme seu e-mail para entrar.")).toBeVisible();
+    await page.getByRole("button", { name: "REENVIAR LINK" }).click();
+    await expect(
+      page.getByText("Se houver uma conta pendente, enviamos um novo link."),
+    ).toBeVisible();
+    expect(await inboxOf(request, "nova@teste.dev")).toHaveLength(2);
+    await expect(page).toHaveURL(/\/entrar$/);
   });
 
   test("Apple não aparece enquanto está desligado", async ({ page }) => {
@@ -337,22 +371,58 @@ test.describe("cadastro", () => {
     await expect(page).toHaveURL(/\/cadastro$/);
   });
 
-  test("e-mail da ana mostra E-mail já cadastrado", async ({ page }) => {
-    await gotoHydrated(page, "/cadastro");
-    await fillSignup(page, { email: "ana@teste.dev" });
-    await terms(page).click();
-    await submitSignup(page).click();
-    await expect(page.getByText("E-mail já cadastrado.")).toBeVisible();
+  test("e-mail da ana mostra a mesma tela de confirmação, sem enviar nada", async ({
+    page,
+    request,
+  }) => {
+    await signUpNova(page, "ana@teste.dev");
+    await expect(page).toHaveURL(/\/cadastro\/confirme-seu-email\?email=ana%40teste\.dev$/);
+    await expect(page.getByText("Enviamos um link para a***@teste.dev.")).toBeVisible();
+    expect(await inboxOf(request, "ana@teste.dev")).toEqual([]);
+  });
+
+  // Opening the link (/auth/confirm creates the session) lands with the confirm route in a later
+  // task; here the flow stops at the e-mail the mock "sent".
+  test("sucesso abre CONFIRA SEU E-MAIL, sem sessão, e o link chega na caixa", async ({
+    page,
+    context,
+    request,
+  }) => {
+    await signUpNova(page);
+    await expect(page).toHaveURL(/\/cadastro\/confirme-seu-email\?email=nova%40teste\.dev$/);
+    await expect(page.getByText("Enviamos um link para n***@teste.dev.")).toBeVisible();
+    await expect(page.getByText("nova@teste.dev")).toHaveCount(0);
+    expect((await context.cookies()).some((c) => c.name === "pp_session")).toBe(false);
+    const inbox = await inboxOf(request, "nova@teste.dev");
+    expect(inbox).toHaveLength(1);
+    expect(inbox[0]).toMatchObject({ to: "nova@teste.dev", kind: "confirmacao" });
+    expect(inbox[0]?.link).toMatch(/^\/auth\/confirm\?token_hash=[^&]+&type=email&next=%2Fconta$/);
+  });
+
+  test("REENVIAR LINK manda um novo link e responde sem revelar a conta", async ({
+    page,
+    request,
+  }) => {
+    await signUpNova(page);
+    await page.getByRole("button", { name: "REENVIAR LINK" }).click();
+    await expect(
+      page.getByText("Se houver uma conta pendente, enviamos um novo link."),
+    ).toBeVisible();
+    expect(await inboxOf(request, "nova@teste.dev")).toHaveLength(2);
+    await page.getByRole("link", { name: /VOLTAR PARA ENTRAR/ }).click();
+    await expect(page).toHaveURL(/\/entrar$/);
+  });
+
+  test("sem e-mail válido na URL, a tela de confirmação volta ao cadastro", async ({ page }) => {
+    await page.goto("/cadastro/confirme-seu-email?email=x");
     await expect(page).toHaveURL(/\/cadastro$/);
   });
 
-  test("sucesso cria a conta e abre a sessão", async ({ page, isMobile }) => {
-    await gotoHydrated(page, "/cadastro");
-    await fillSignup(page);
-    await terms(page).click();
-    await submitSignup(page).click();
-    await expect(page).toHaveURL(/\/conta$/);
-    await expectSignedInHeader(page, isMobile);
+  test("a tela de confirmação passa na acessibilidade e nos alvos de toque", async ({ page }) => {
+    await signUpNova(page);
+    await expectA11y(page);
+    await expectTouchTargets(page.getByRole("main"));
+    await snap(page, "confirme-seu-email");
   });
 
   test("passa na acessibilidade e nos alvos de toque", async ({ page }) => {

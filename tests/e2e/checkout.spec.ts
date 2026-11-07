@@ -96,8 +96,9 @@ test("visitante vê o quadro Já tem conta? com links que voltam ao checkout", a
   ).toHaveAttribute("href", "/entrar?next=%2Fcheckout");
 });
 
-test("criar conta no checkout pede senha, recusa e-mail em uso e não depende de marcar nada", async ({
+test("criar conta no checkout pede senha e, com e-mail em uso, segue como convidado igual", async ({
   page,
+  request,
 }) => {
   await openCheckout(page);
   const box = page.getByRole("checkbox", { name: /Salvar meus dados/ });
@@ -108,8 +109,39 @@ test("criar conta no checkout pede senha, recusa e-mail em uso e não depende de
   await field(page, "E-mail").fill("ana@teste.dev");
   await field(page, "Crie uma senha").fill("Senha@123");
   await save(page).click();
-  await expect(page.getByText("E-mail já cadastrado.")).toBeVisible();
-  await expect(page).toHaveURL(/\/checkout$/);
+  // No "e-mail already registered" any more: the order goes on, never revealing the account.
+  await expect(page).toHaveURL(/\/pedido\/[^/]+\/pagamento\?conta=pendente$/);
+  await expect(page.getByRole("heading", { level: 1, name: /PAGUE COM PIX/ })).toBeVisible();
+  const inbox = await request.get("/api/__mock__/inbox?email=ana@teste.dev");
+  expect(await inbox.json()).toEqual([]);
+});
+
+test("criar conta no checkout com cartão aprovado avisa do link de ativação", async ({
+  page,
+  request,
+  context,
+}) => {
+  await openCheckout(page);
+  await page.getByRole("checkbox", { name: /Salvar meus dados/ }).click();
+  await fillGuest(page);
+  await field(page, "Crie uma senha").fill("Senha@123");
+  await page.getByRole("radio", { name: /CARTÃO/ }).click();
+  await field(page, "Número do cartão").fill("4111111111111111");
+  await field(page, "Nome impresso no cartão").fill("NOVA PESSOA");
+  await field(page, "Validade").fill("1230");
+  await field(page, "CVV").fill("7391");
+  await save(page).click();
+  await expect(page).toHaveURL(/\/pedido\/[^/]+\/confirmado\?conta=pendente$/);
+  await expect(page.getByText("Enviamos um link para ativar sua conta.")).toBeVisible();
+  // Pending account: no session, and the link opens the order list.
+  expect((await context.cookies()).some((c) => c.name === "pp_session")).toBe(false);
+  const inbox = (await (await request.get("/api/__mock__/inbox?email=nova@teste.dev")).json()) as {
+    kind: string;
+    link: string;
+  }[];
+  expect(inbox).toHaveLength(1);
+  expect(inbox[0]).toMatchObject({ kind: "confirmacao" });
+  expect(inbox[0]?.link).toContain("next=%2Fconta%2Fpedidos");
 });
 
 test("/checkout com carrinho vazio volta para /carrinho", async ({ page }) => {

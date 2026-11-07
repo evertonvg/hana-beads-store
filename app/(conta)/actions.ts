@@ -7,6 +7,8 @@ import type { CartData } from "@/lib/cart/types";
 import { getData } from "@/lib/data";
 import { parseProvider } from "@/lib/auth/providers";
 import { publicEnv } from "@/lib/env";
+import { clearGuestTokens } from "@/lib/guest-orders";
+import { allowAttempt, RATE_LIMITED } from "@/lib/rate-limit";
 import { getSession } from "@/lib/session";
 import {
   AUTH_CONSENT_VERSION,
@@ -16,10 +18,25 @@ import {
 } from "@/lib/validation/auth";
 import { fieldErrorsFrom, type FormState, GENERIC_ERROR } from "@/lib/validation/form-state";
 
-/** `redirectTo` is already sanitized: the client may navigate to it as is. */
-export type AuthResult = FormState & { redirectTo?: string };
+/**
+ * `redirectTo` is already sanitized: the client may navigate to it as is (an external URL only
+ * comes from a social sign-in). `unconfirmed` = right password, e-mail not confirmed yet.
+ */
+export type AuthResult = FormState & { redirectTo?: string; unconfirmed?: boolean };
 
 const BAD_CREDENTIALS = "E-mail ou senha incorretos.";
+const UNCONFIRMED = "Confirme seu e-mail para entrar.";
+const rateLimited = (): AuthResult => ({ status: "error", message: RATE_LIMITED });
+
+/** Same text whether or not the e-mail has a pending account. */
+const RESEND_SENT = "Se houver uma conta pendente, enviamos um novo link.";
+
+/** Where sign-up sends the user: the e-mail is in the URL only to show (masked) and resend. */
+function confirmEmailPath(email: string, next: string): string {
+  const query = new URLSearchParams({ email });
+  if (next !== "/conta") query.set("next", next);
+  return `/cadastro/confirme-seu-email?${query.toString()}`;
+}
 
 /** Same text for existing and unknown e-mails: never reveal who has an account. */
 const RECOVER_SENT = "Se o e-mail estiver cadastrado, você vai receber um link.";
@@ -35,9 +52,10 @@ export async function loginAction(input: unknown): Promise<AuthResult> {
   if (!parsed.success) return { status: "error", message: BAD_CREDENTIALS };
   try {
     const { email, password, remember } = parsed.data;
+    if (!(await allowAttempt("login", email))) return rateLimited();
     const user = await getData().auth.signIn(email, password, remember);
-    // An unconfirmed e-mail gets the generic error for now (the resend flow is a later task).
-    if (!user || "error" in user) return { status: "error", message: BAD_CREDENTIALS };
+    if (!user) return { status: "error", message: BAD_CREDENTIALS };
+    if ("error" in user) return { status: "error", message: UNCONFIRMED, unconfirmed: true };
     return { status: "ok", redirectTo: safeNext(nextOf(input)) };
   } catch (error) {
     console.error("loginAction failed", error);
@@ -57,6 +75,7 @@ export async function signupAction(input: unknown): Promise<AuthResult> {
   }
   try {
     const { name, email, phone, password, marketingEmail } = parsed.data;
+    if (!(await allowAttempt("cadastro", email))) return rateLimited();
     const next = safeNext(nextOf(input));
     // Same answer whether or not the e-mail already had an account: no session until confirmed.
     await getData().auth.signUp(
@@ -71,14 +90,35 @@ export async function signupAction(input: unknown): Promise<AuthResult> {
       },
       next,
     );
-    return { status: "ok", redirectTo: next };
+    return { status: "ok", redirectTo: confirmEmailPath(email, next) };
   } catch (error) {
     console.error("signupAction failed", error);
     return { status: "error", message: GENERIC_ERROR };
   }
 }
 
-/** Social sign-in: returns the provider URL to navigate to (the mock's lands on /auth/callback). */
+/**
+ * "REENVIAR LINK" (confirmation screen and unconfirmed login). The answer never says whether the
+ * e-mail has a pending account; a malformed e-mail gets the same answer without a send.
+ */
+export async function resendConfirmationAction(email: unknown, next: unknown): Promise<FormState> {
+  const parsed = recoverSchema.safeParse({ email });
+  try {
+    if (!(await allowAttempt("reenvio", parsed.success ? parsed.data.email : null))) {
+      return rateLimited();
+    }
+    if (parsed.success) await getData().auth.resendConfirmation(parsed.data.email, safeNext(next));
+  } catch (error) {
+    console.error("resendConfirmationAction failed", error);
+    return { status: "error", message: GENERIC_ERROR };
+  }
+  return { status: "ok", message: RESEND_SENT };
+}
+
+/**
+ * Social sign-in: returns the provider URL to navigate to (the mock's lands on /auth/callback).
+ * Not rate limited here: the provider does its own checks.
+ */
 export async function socialAction(provider: string, next: unknown): Promise<AuthResult> {
   const allowed = parseProvider(provider, publicEnv.authApple);
   if (!allowed) {
@@ -104,6 +144,7 @@ export async function recoverAction(input: unknown): Promise<FormState> {
     };
   }
   try {
+    if (!(await allowAttempt("recuperacao", parsed.data.email))) return rateLimited();
     await getData().auth.requestPasswordReset(parsed.data.email);
   } catch (error) {
     console.error("recoverAction failed", error);
@@ -149,7 +190,11 @@ export async function saveCartAction(lines: unknown): Promise<void> {
   await getData().auth.saveCart(session.id, await knownLines(sanitizeCart({ lines }).lines));
 }
 
-/** Sign-out: ends the session. The client also releases its cart (`useCartStore.release`). */
+/**
+ * Sign-out: ends the session and forgets the guest order tokens, so the next person on this
+ * browser cannot open those orders. The client also releases its cart (`useCartStore.release`).
+ */
 export async function logoutAction(): Promise<void> {
   await getData().auth.signOut();
+  await clearGuestTokens();
 }

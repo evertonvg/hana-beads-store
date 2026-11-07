@@ -54,3 +54,10 @@ export function formatDate(iso: string | null, pattern = "dd/MM/yyyy"): string {
 export function formatOrderNumber(n: string): string {
   return `#${n}`;
 }
+
+/** E-mail shown on screen without revealing it whole: first letter, `***`, then the domain. */
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf("@");
+  if (at < 1) return "***";
+  return `${email[0]}***${email.slice(at)}`;
+}

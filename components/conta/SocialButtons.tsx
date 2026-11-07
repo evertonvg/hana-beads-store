@@ -6,7 +6,6 @@ import { FormMessage } from "@/components/ui/FormMessage";
 import { focusRing } from "@/components/ui/focus";
 import { cn } from "@/lib/cn";
 import type { AuthProvider } from "@/lib/data/ports";
-import { useFinishAuth } from "./use-finish-auth";
 import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 const base = cn(
@@ -77,11 +76,16 @@ const BUTTONS: { provider: AuthProvider; label: string; logo: ReactNode; classNa
 
 type Props = { next: string; apple: boolean };
 
-/** Social sign-in buttons with each provider's brand look; Apple only when enabled. */
+/**
+ * Social sign-in buttons with each provider's brand look; Apple only when enabled. The action
+ * returns the provider's URL (the mock's is the local /auth/callback route): a full-page
+ * navigation, since the session only exists after the callback sets its cookies.
+ */
 export function SocialButtons({ next, apple }: Props) {
-  const finish = useFinishAuth();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Stays disabled while the browser leaves for the provider.
+  const [leaving, setLeaving] = useState(false);
 
   const run = (provider: AuthProvider) => {
     setError(null);
@@ -89,7 +93,8 @@ export function SocialButtons({ next, apple }: Props) {
       try {
         const result = await socialAction(provider, next);
         if (result.status === "ok" && result.redirectTo) {
-          await finish(result.redirectTo);
+          setLeaving(true);
+          window.location.assign(result.redirectTo);
           return;
         }
         setError(result.message ?? GENERIC_ERROR);
@@ -105,7 +110,7 @@ export function SocialButtons({ next, apple }: Props) {
         <button
           key={b.provider}
           type="button"
-          disabled={pending}
+          disabled={pending || leaving}
           onClick={() => run(b.provider)}
           className={cn(base, b.className)}
         >

@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { loginAction, type AuthResult } from "@/app/(conta)/actions";
+import { loginAction, resendConfirmationAction, type AuthResult } from "@/app/(conta)/actions";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -18,13 +18,21 @@ import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 type Props = { next: string; onForgot: () => void };
 
-/** E-mail + password sign-in. Server errors never say which of the two was wrong. */
+/**
+ * E-mail + password sign-in. Server errors never say which of the two was wrong. An account not
+ * confirmed yet (right password) gets "REENVIAR LINK" for a new confirmation e-mail.
+ */
 export function LoginForm({ next, onForgot }: Props) {
   const finish = useFinishAuth();
   const [pending, startTransition] = useTransition();
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  /** E-mail of the unconfirmed account the resend button sends to (null = no button). */
+  const [unconfirmed, setUnconfirmed] = useState<string | null>(null);
+  const [resending, startResend] = useTransition();
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [resendError, setResendError] = useState<string | null>(null);
   const {
     register,
     control,
@@ -38,6 +46,9 @@ export function LoginForm({ next, onForgot }: Props) {
 
   const onSubmit = (values: LoginInput) => {
     setFormError(null);
+    setUnconfirmed(null);
+    setResendMessage(null);
+    setResendError(null);
     startTransition(async () => {
       let result: AuthResult;
       try {
@@ -51,7 +62,22 @@ export function LoginForm({ next, onForgot }: Props) {
         return;
       }
       setFormError(result.message ?? GENERIC_ERROR);
-      setFocus("password");
+      if (result.unconfirmed) setUnconfirmed(values.email);
+      else setFocus("password");
+    });
+  };
+
+  const resend = (email: string) => {
+    setResendMessage(null);
+    setResendError(null);
+    startResend(async () => {
+      try {
+        const result = await resendConfirmationAction(email, next);
+        if (result.status === "ok") setResendMessage(result.message ?? null);
+        else setResendError(result.message ?? GENERIC_ERROR);
+      } catch {
+        setResendError(GENERIC_ERROR);
+      }
     });
   };
 
@@ -103,6 +129,21 @@ export function LoginForm({ next, onForgot }: Props) {
         </button>
       </div>
       <FormMessage error={formError} />
+      {unconfirmed ? (
+        <div className="flex flex-col gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => resend(unconfirmed)}
+            disabled={resending}
+            aria-busy={resending}
+            className="min-h-12"
+          >
+            REENVIAR LINK
+          </Button>
+          <FormMessage success={resendMessage} error={resendError} />
+        </div>
+      ) : null}
       <Button
         type="submit"
         variant="primary"

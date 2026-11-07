@@ -15,10 +15,13 @@ import { getSession } from "@/lib/session";
 import { CHECKOUT_CONSENT_VERSION, checkoutSchema } from "@/lib/validation/checkout";
 import { fieldErrorsFrom, type FormState, GENERIC_ERROR } from "@/lib/validation/form-state";
 
-/** `redirectTo` is where the client goes next; `accountCreated` tells it to sync the cart owner. */
+/**
+ * `redirectTo` is where the client goes next. `accountPending` = "save my data" was asked: an
+ * account waits for e-mail confirmation (the same answer when the e-mail already had one).
+ */
 export type PlaceOrderResult = FormState & {
   redirectTo?: string;
-  accountCreated?: boolean;
+  accountPending?: boolean;
   /** Owner of the order when signed in: the client syncs its cart owner when it differs. */
   userId?: string;
 };
@@ -100,11 +103,15 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
     const { auth, orders, payments } = getData();
     const session = await getSession();
     const userId = session?.id ?? null;
-    if (!userId && v.saveAccount) {
+    const accountPending = !userId && v.saveAccount;
+    // Owner recorded on a guest order: the account created just now (null if the e-mail had one).
+    let pendingUserId: string | null = null;
+    if (accountPending) {
       // Optional "save my data" path. Terms are accepted by the notice next to the button, not
       // by a checkbox (flagged for legal review); marketing e-mail is never opted in here.
-      // The account stays pending e-mail confirmation, so the order goes on as a guest order.
-      await auth.signUp(
+      // The account stays pending e-mail confirmation, so the order goes on as a guest order,
+      // already tied to the new account. The order id is unknown here: the link opens the list.
+      const created = await auth.signUp(
         {
           name: v.name,
           email: v.email,
@@ -116,13 +123,14 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
           cpf: v.cpf,
           address,
         },
-        "/conta",
+        "/conta/pedidos",
       );
+      pendingUserId = created.userId;
     }
 
     const order = await orders.create(
       {
-        userId,
+        userId: userId ?? pendingUserId,
         guestToken: userId ? null : crypto.randomUUID(),
         paymentMethod: v.payment,
         items: priced.map((l) => ({
@@ -156,11 +164,13 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
         v.payment === "cartao" ? { token: v.cardToken ?? "", last4: v.cardLast4 ?? "" } : undefined,
       ));
     const approved = payment.kind === "cartao" && payment.result === "aprovado";
+    const screen = `/pedido/${order.id}/${approved ? "confirmado" : "pagamento"}`;
     return {
       status: "ok",
-      redirectTo: `/pedido/${order.id}/${approved ? "confirmado" : "pagamento"}`,
-      // No session until the e-mail is confirmed (the client keeps its guest cart).
-      accountCreated: false,
+      redirectTo: accountPending ? `${screen}?conta=pendente` : screen,
+      // No session until the e-mail is confirmed: the client keeps its guest cart.
+      accountPending,
+      // Only the signed-in owner: never tells whether a pending account was created.
       ...(userId ? { userId } : {}),
     };
   } catch (error) {

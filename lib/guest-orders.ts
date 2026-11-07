@@ -32,3 +32,14 @@ export async function rememberGuestToken(token: string): Promise<void> {
     maxAge: MAX_AGE_SECONDS,
   });
 }
+
+/** Forgets every guest order token (sign-out: the next person on this browser must not see them). */
+export async function clearGuestTokens(): Promise<void> {
+  (await cookies()).set(GUEST_ORDERS_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
+}

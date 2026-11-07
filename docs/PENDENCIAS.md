@@ -55,6 +55,7 @@ Lacunas entre o que a política de privacidade lista e o que o código coleta ho
 - **Extras do carrinho e do checkout.** Botão APLICAR do cupom, rascunho de cupom restaurado, cupom sempre aberto no celular e `PillRadioGroup` para o frete não estão no design. Aceitos por usabilidade.
 - **Gaveta "Continuar".** No desktop o design usa o link "Continuar comprando" em Space Mono 14px; a implementação usa `‹ CONTINUAR JOGANDO` (microcopy do glossário do briefing) em fonte pixel, sem sombra. Manter ou alinhar.
 - **Newsletter.** O formulário tem 520 px como no design; o cartão que o envolve tem 720 px com fundo `surface` (vem da tela de parallax). Aceito.
+- **Tela "Confira seu e-mail" do cadastro** (`/cadastro/confirme-seu-email`). Não existe nos `.dc.html`: usa o cartão do estado "enviado" de `/entrar?modo=recuperar`, com o e-mail mascarado (`a***@teste.dev`), o botão REENVIAR LINK e o link ‹ VOLTAR PARA ENTRAR. O botão REENVIAR LINK também aparece no login de conta não confirmada. Confirmar o visual.
 
 ## 3. Obrigações do backend (o mock não cobre)
 

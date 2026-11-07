@@ -109,25 +109,51 @@ describe("placeOrderAction", () => {
     expect(jar.has("pp_guest_orders")).toBe(false);
   });
 
-  it("creates the account pending confirmation and places a guest order", async () => {
+  it("creates the account pending confirmation and places a guest order already tied to it", async () => {
     const r = await placeOrderAction({ ...base, saveAccount: true, password: "Senha@123" });
-    expect(r).toMatchObject({ status: "ok", accountCreated: false });
-    expect(getMockStore().pendingUsers.map((u) => u.email)).toEqual(["nova@teste.dev"]);
-    expect(getMockStore().inbox.map((m) => m.kind)).toEqual(["confirmacao"]);
-    expect(placedOrders()[0]).toMatchObject({ userId: null });
-    expect(placedOrders()[0]?.guestToken).toBeTruthy();
+    expect(r).toMatchObject({ status: "ok", accountPending: true });
+    expect(r.redirectTo).toMatch(/^\/pedido\/[^/]+\/pagamento\?conta=pendente$/);
+    expect(r).not.toHaveProperty("userId");
+    const pending = getMockStore().pendingUsers.find((u) => u.email === "nova@teste.dev");
+    expect(pending).toBeDefined();
+    expect(
+      getMockStore().inbox.map((m) => [m.kind, m.link.includes("next=%2Fconta%2Fpedidos")]),
+    ).toEqual([["confirmacao", true]]);
+    const order = placedOrders()[0];
+    expect(order).toMatchObject({ userId: pending?.id });
+    expect(order?.guestToken).toBeTruthy();
+    expect(JSON.parse(jar.get("pp_guest_orders") ?? "[]")).toEqual([order?.guestToken]);
   });
 
-  it("places the order the same way when the e-mail already has an account", async () => {
+  it("gives the client the same answer when the e-mail already has an account", async () => {
     const r = await placeOrderAction({
       ...base,
       email: "ana@teste.dev",
       saveAccount: true,
       password: "Senha@123",
     });
-    expect(r).toMatchObject({ status: "ok", accountCreated: false });
-    expect(placedOrders()).toHaveLength(1);
-    expect(getMockStore().inbox).toEqual([]);
+    const fresh = await placeOrderAction({
+      ...base,
+      checkoutToken: "3f6c1b1e-6d3b-4c6e-9d27-6f1b7a2d9c99",
+      saveAccount: true,
+      password: "Senha@123",
+    });
+    const shape = (x: typeof r) => ({
+      ...x,
+      redirectTo: x.redirectTo?.replace(/[^/]+(?=\/pagamento)/, "ID"),
+    });
+    expect(shape(r)).toEqual(shape(fresh));
+    expect(r).toMatchObject({ status: "ok", accountPending: true });
+    const order = placedOrders().find((o) => o.customer.email === "ana@teste.dev");
+    expect(order).toMatchObject({ userId: null });
+    expect(order?.guestToken).toBeTruthy();
+    expect(getMockStore().inbox.filter((m) => m.to === "ana@teste.dev")).toEqual([]);
+  });
+
+  it("does not mark the account pending without 'save my data'", async () => {
+    const r = await placeOrderAction(base);
+    expect(r).toMatchObject({ status: "ok", accountPending: false });
+    expect(r.redirectTo).not.toContain("conta=pendente");
   });
 });
 
@@ -208,7 +234,7 @@ describe("retry after a partial failure", () => {
     getSession.mockResolvedValue({ id: user?.id, name: "Nova Pessoa", email: "nova@teste.dev" });
     const retry = await placeOrderAction({ ...base, saveAccount: true, password: "Senha@123" });
     create.mockRestore();
-    expect(retry).toMatchObject({ status: "ok", accountCreated: false, userId: user?.id });
+    expect(retry).toMatchObject({ status: "ok", accountPending: false, userId: user?.id });
     expect(getMockStore().orders[0]?.userId).toBe(user?.id);
   });
 

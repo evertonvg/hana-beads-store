@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import type { z } from "zod";
@@ -17,7 +18,6 @@ import { signupSchema, type SignupInput } from "@/lib/validation/auth";
 import { PasswordRules } from "./PasswordRules";
 import { SocialButtons } from "./SocialButtons";
 import { authCard, authInput, inlineLink } from "./styles";
-import { useFinishAuth } from "./use-finish-auth";
 import { GENERIC_ERROR } from "@/lib/validation/form-state";
 
 type SignupFormInput = z.input<typeof signupSchema>;
@@ -26,9 +26,12 @@ const FIELDS = ["name", "email", "phone", "password", "confirmPassword", "accept
 
 type Props = { next: string; authApple: boolean; className?: string };
 
-/** "NEW PLAYER": social shortcuts and the e-mail form with live password rules and the consents. */
+/**
+ * "NEW PLAYER": social shortcuts and the e-mail form with live password rules and the consents.
+ * Success opens "Confira seu e-mail": no session (nor cart sync) until the link is opened.
+ */
 export function SignupForm({ next, authApple, className }: Props) {
-  const finish = useFinishAuth();
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -65,7 +68,7 @@ export function SignupForm({ next, authApple, className }: Props) {
       }
       if (result.status === "ok" && result.redirectTo) {
         setDone(true);
-        await finish(result.redirectTo);
+        router.push(result.redirectTo);
         return;
       }
       let placed = false;

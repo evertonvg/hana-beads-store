@@ -195,11 +195,11 @@ export function CheckoutForm({ initial, lines, priced }: Props) {
       }
       if (result.status === "ok" && result.redirectTo) {
         setDone(true);
-        // New account, or already signed in (retry after a partial failure) with a cart that is
-        // not marked as this user's yet: sync the owner and refresh the header first.
+        // Signed in with a cart not marked as this user's yet (e.g. a retry after confirming the
+        // e-mail): sync the owner and refresh the header first. A pending account has no session.
         const ownerMismatch =
           result.userId !== undefined && useCartStore.getState().owner !== result.userId;
-        if (result.accountCreated || ownerMismatch) await finishAuth(result.redirectTo);
+        if (ownerMismatch) await finishAuth(result.redirectTo);
         else router.push(result.redirectTo);
         return;
       }

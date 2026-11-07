@@ -11,6 +11,7 @@ import {
   isValidCep,
   isValidCpf,
   isValidPhone,
+  maskEmail,
   onlyDigits,
 } from "@/lib/format";
 
@@ -104,5 +105,16 @@ describe("formatDate", () => {
 describe("formatOrderNumber", () => {
   it("prefixes the order number with #", () => {
     expect(formatOrderNumber("0005")).toBe("#0005");
+  });
+});
+
+describe("maskEmail", () => {
+  it("keeps the first letter and the domain", () => {
+    expect(maskEmail("ana@teste.dev")).toBe("a***@teste.dev");
+    expect(maskEmail("a@teste.dev")).toBe("a***@teste.dev");
+  });
+  it("hides everything without a local part or an @", () => {
+    expect(maskEmail("@teste.dev")).toBe("***");
+    expect(maskEmail("semarroba")).toBe("***");
   });
 });

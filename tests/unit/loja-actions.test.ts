@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { toggleFavorite, requestStockAlert, byIds, getSession } = vi.hoisted(() => ({
+const { toggleFavorite, requestStockAlert, byIds, getSession, allowAttempt } = vi.hoisted(() => ({
   toggleFavorite: vi.fn(),
   requestStockAlert: vi.fn(),
   byIds: vi.fn(),
   getSession: vi.fn(),
+  allowAttempt: vi.fn(),
 }));
 
 vi.mock("@/lib/data", () => ({
@@ -14,6 +15,10 @@ vi.mock("@/lib/data", () => ({
   }),
 }));
 vi.mock("@/lib/session", () => ({ getSession }));
+vi.mock("@/lib/rate-limit", () => ({
+  allowAttempt,
+  RATE_LIMITED: "Muitas tentativas. Tente de novo em alguns minutos.",
+}));
 
 import { stockAlertAction, toggleFavoriteAction } from "@/app/(loja)/loja/actions";
 
@@ -28,7 +33,10 @@ function form(fields: Record<string, string>) {
 }
 
 beforeEach(() => {
-  for (const fn of [toggleFavorite, requestStockAlert, byIds, getSession]) fn.mockReset();
+  for (const fn of [toggleFavorite, requestStockAlert, byIds, getSession, allowAttempt]) {
+    fn.mockReset();
+  }
+  allowAttempt.mockResolvedValue(true);
   getSession.mockResolvedValue(null);
   byIds.mockResolvedValue([soldOut]);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -71,6 +79,20 @@ describe("stockAlertAction", () => {
     expect(state.status).toBe("error");
     expect(state.fieldErrors).toHaveProperty("email");
     expect(state.fieldErrors).toHaveProperty("consent");
+    expect(requestStockAlert).not.toHaveBeenCalled();
+  });
+
+  it("refuses over the limit without calling the port", async () => {
+    allowAttempt.mockResolvedValueOnce(false);
+    const state = await stockAlertAction(
+      idle,
+      form({ productId: "planeta", email: "ana@teste.dev", consent: "true" }),
+    );
+    expect(state).toEqual({
+      status: "error",
+      message: "Muitas tentativas. Tente de novo em alguns minutos.",
+    });
+    expect(allowAttempt).toHaveBeenCalledWith("aviso_estoque", "ana@teste.dev");
     expect(requestStockAlert).not.toHaveBeenCalled();
   });
 
