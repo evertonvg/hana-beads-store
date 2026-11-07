@@ -3,7 +3,10 @@ import { applyRememberPolicy, REMEMBER_MAX_AGE } from "@/lib/supabase/remember";
 
 describe("applyRememberPolicy", () => {
   it("drops maxAge and expires without remember, keeping the rest", () => {
-    const out = applyRememberPolicy({ maxAge: 400 * 86400, expires: new Date(), path: "/" }, false);
+    const out = applyRememberPolicy(
+      { maxAge: 400 * 86400, expires: new Date(Date.now() + 86_400_000), path: "/" },
+      false,
+    );
     expect(out).not.toHaveProperty("maxAge");
     expect(out).not.toHaveProperty("expires");
     expect(out.path).toBe("/");
