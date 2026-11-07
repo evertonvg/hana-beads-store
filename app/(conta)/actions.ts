@@ -1,7 +1,7 @@
 "use server";
 
 import { safeNext } from "@/lib/auth/redirect";
-import { sanitizeCart } from "@/lib/cart/merge";
+import { hasTooManyLines, sanitizeCart } from "@/lib/cart/merge";
 import { planCartSync } from "@/lib/cart/sync";
 import type { CartData } from "@/lib/cart/types";
 import { getData } from "@/lib/data";
@@ -134,7 +134,7 @@ export async function syncCartAction(
   const session = await getSession();
   if (!session) return null;
   const { auth } = getData();
-  const local = sanitizeCart({ lines });
+  const local = hasTooManyLines(lines) ? { lines: [] } : sanitizeCart({ lines });
   const saved = (await auth.savedCart(session.id)) ?? { lines: [] };
   const planned = planCartSync(local, typeof owner === "string" ? owner : null, session.id, saved);
   const result = await knownLines(planned.lines);
@@ -148,7 +148,7 @@ export async function syncCartAction(
  */
 export async function saveCartAction(lines: unknown): Promise<void> {
   const session = await getSession();
-  if (!session) return;
+  if (!session || hasTooManyLines(lines)) return;
   await getData().auth.saveCart(session.id, await knownLines(sanitizeCart({ lines }).lines));
 }
 

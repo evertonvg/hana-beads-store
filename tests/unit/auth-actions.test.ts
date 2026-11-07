@@ -207,4 +207,11 @@ describe("cart line cap", () => {
     const result = await syncCartAction(many, null);
     expect(result?.lines.find((l) => l.productId === "garota")).toBeUndefined();
   });
+
+  it("saveCartAction does not save a cart with more than 50 lines", async () => {
+    getSession.mockResolvedValue(ana);
+    const before = getMockStore().savedCarts.ana;
+    await saveCartAction(many);
+    expect(getMockStore().savedCarts.ana).toEqual(before);
+  });
 });
