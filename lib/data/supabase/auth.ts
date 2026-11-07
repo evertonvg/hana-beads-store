@@ -5,15 +5,15 @@ import {
   type SupabaseClient,
 } from "@supabase/supabase-js";
 import { cookies as nextCookies } from "next/headers";
-import { randomBytes } from "node:crypto";
 
 import type { CartData } from "@/lib/cart/types";
-import type { AuthPort, AuthUser, SignUpInput } from "@/lib/data/ports";
+import type { AuthPort, AuthUser, EmailLinkResult, SignUpInput } from "@/lib/data/ports";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { REMEMBER_COOKIE, REMEMBER_MAX_AGE } from "@/lib/supabase/remember";
 import { MARKETING_CONSENT_VERSION } from "@/lib/validation/account";
 
 import { toPortError } from "./errors";
+import { randomPassword } from "./random-password";
 
 type Client = SupabaseClient<Database>;
 
@@ -63,6 +63,15 @@ function isInfraError(e: unknown): boolean {
     e instanceof AuthUnknownError ||
     (isAuthApiError(e) && e.status >= 500)
   );
+}
+
+/** Runs a Supabase call; true when it neither returned an error nor threw. */
+async function succeeded(call: () => Promise<{ error: unknown }>): Promise<boolean> {
+  try {
+    return !(await call()).error;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -125,6 +134,47 @@ export function createSupabaseAuth(deps: SupabaseAuthDeps): AuthPort {
     const name = await profileName(user.id);
     if (name === null) return null;
     return { id: user.id, name, email: user.email ?? "" };
+  }
+
+  /**
+   * Signed up again while pending: nobody's password is trusted, so it becomes a random one.
+   * Fails CLOSED: the account never keeps its old password while this returns ok or throws.
+   * 1. From the session the link opened: GoTrue ends every OTHER session and keeps this one.
+   * 2. Else through the admin API (ends every session), then a sign-in with the random password
+   *    opens this session again.
+   * 3. Else (or no session): signed out, `{ ok: false }`; the flag stays set, so the account still
+   *    counts as untrusted, and password recovery is the way in.
+   */
+  async function scramblePassword(
+    client: Client,
+    userId: string,
+    email: string,
+  ): Promise<EmailLinkResult> {
+    const password = randomPassword();
+    let sessionKept = await succeeded(() => client.auth.updateUser({ password }));
+    if (sessionKept) {
+      if (!(await succeeded(() => client.auth.signOut({ scope: "others" })))) {
+        console.error("auth: could not end the other sessions after a confirmation");
+      }
+    } else if (
+      await succeeded(() => deps.getAdminClient().auth.admin.updateUserById(userId, { password }))
+    ) {
+      sessionKept = await succeeded(() => client.auth.signInWithPassword({ email, password }));
+    } else {
+      console.error("auth: could not replace the password of a re-signed-up account");
+    }
+    if (!sessionKept) {
+      await succeeded(() => client.auth.signOut({ scope: "local" }));
+      return { ok: false };
+    }
+    const flag = await succeeded(() =>
+      deps.getAdminClient().auth.admin.updateUserById(userId, {
+        app_metadata: { [RESIGNUP_FLAG]: null },
+      }),
+    );
+    // Left set, the next confirmation link would just scramble an unknown password again.
+    if (!flag) console.error("auth: could not clear the re-sign-up flag");
+    return { ok: true, mustSetPassword: true };
   }
 
   return {
@@ -220,18 +270,7 @@ export function createSupabaseAuth(deps: SupabaseAuthDeps): AuthPort {
       if (type !== "email" || !user || user.app_metadata[RESIGNUP_FLAG] !== true) {
         return { ok: true, mustSetPassword: false };
       }
-      // Signed up again while pending: nobody's password is trusted. Replace it with a random one
-      // from this session (GoTrue then ends every OTHER session; the admin API would end this one
-      // too), clear the flag, and let the user choose a password here.
-      const upd = await client.auth.updateUser({ password: randomBytes(32).toString("base64url") });
-      if (upd.error) toPortError(upd.error);
-      const out = await client.auth.signOut({ scope: "others" });
-      if (out.error) toPortError(out.error);
-      const flag = await deps.getAdminClient().auth.admin.updateUserById(user.id, {
-        app_metadata: { [RESIGNUP_FLAG]: null },
-      });
-      if (flag.error) toPortError(flag.error);
-      return { ok: true, mustSetPassword: true };
+      return scramblePassword(client, user.id, user.email ?? "");
     },
 
     async resendConfirmation(email, next) {

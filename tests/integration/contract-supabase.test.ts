@@ -1,3 +1,4 @@
+import { AuthApiError } from "@supabase/supabase-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CartData } from "@/lib/cart/types";
@@ -32,13 +33,17 @@ describeCatalogContract(
 );
 
 /** The Supabase auth port bound to its own fresh cookie jar (one browser). */
-function authInJar(jar = cookieJar()) {
+function authInJar(
+  jar = cookieJar(),
+  overrides: Partial<Parameters<typeof createSupabaseAuth>[0]> = {},
+) {
   const auth = createSupabaseAuth({
     getClient: () => Promise.resolve(jarClient(jar, "publishable")),
     getAuthClient: () => Promise.resolve(jarClient(jar, "secret")),
     getAdminClient: serviceClient,
     siteUrl: "http://localhost:3000",
     cookies: () => Promise.resolve(jar),
+    ...overrides,
   });
   return { auth, jar };
 }
@@ -203,5 +208,95 @@ describe("supabase auth adapter", () => {
     expect(new URL(url).searchParams.get("redirect_to")).toBe(
       "http://localhost:3000/auth/callback?next=%2Fconta",
     );
+  });
+
+  describe("confirming a re-signed-up account fails closed", () => {
+    const failure = () => ({
+      data: { user: null },
+      error: new AuthApiError("simulated failure", 500, "unexpected_failure"),
+    });
+
+    /** P1 signs up, P2 signs up again (flagged); returns the confirmation token. */
+    async function flaggedAccount(email: string) {
+      const base = {
+        email,
+        phone: "(11) 91234-5678",
+        acceptTerms: true as const,
+        marketingEmail: false,
+        termsVersion: "2026-10-28",
+      };
+      const first = await authInJar().auth.signUp(
+        { ...base, name: "Quem Chegou Antes", password: "Primeira@123" },
+        "/conta",
+      );
+      await authInJar().auth.signUp(
+        { ...base, name: "Dona do E-mail", password: "Segunda@123" },
+        "/conta",
+      );
+      const link = (await readInbox(email))[0].link;
+      const token = new URL(link, "http://x.invalid").searchParams.get("token_hash") as string;
+      return { id: first.userId as string, token };
+    }
+
+    /** Publishable client over `jar` whose updateUser fails once (the in-session scramble). */
+    function clientFailingUpdateOnce(jar: ReturnType<typeof cookieJar>) {
+      let failed = false;
+      return () => {
+        const client = jarClient(jar, "publishable");
+        const real = client.auth.updateUser.bind(client.auth);
+        client.auth.updateUser = (...args: Parameters<typeof real>) => {
+          if (failed) return real(...args);
+          failed = true;
+          return Promise.resolve(failure());
+        };
+        return Promise.resolve(client);
+      };
+    }
+
+    const oldPasswordsFail = async (email: string) => {
+      const other = authInJar().auth;
+      expect(await other.signIn(email, "Primeira@123", false)).toBeNull();
+      expect(await other.signIn(email, "Segunda@123", false)).toBeNull();
+    };
+
+    it("falls back to the admin API and reopens the session", async () => {
+      const email = `pendente-${crypto.randomUUID().slice(0, 8)}@teste.dev`;
+      const { id, token } = await flaggedAccount(email);
+      const jar = cookieJar();
+      const { auth } = authInJar(jar, { getClient: clientFailingUpdateOnce(jar) });
+
+      expect(await auth.verifyEmailLink(token, "email")).toEqual({
+        ok: true,
+        mustSetPassword: true,
+      });
+      expect(await auth.currentUser()).toMatchObject({ id });
+      await oldPasswordsFail(email);
+      const stored = await serviceClient().auth.admin.getUserById(id);
+      expect(stored.data.user?.app_metadata.resignup).toBeUndefined();
+      expect(await auth.updatePassword("Terceira@123")).toEqual({ ok: true });
+      expect(await authInJar().auth.signIn(email, "Terceira@123", false)).toMatchObject({ id });
+    });
+
+    it("when both ways fail: not ok, signed out, flag kept", async () => {
+      const email = `pendente-${crypto.randomUUID().slice(0, 8)}@teste.dev`;
+      const { id, token } = await flaggedAccount(email);
+      const jar = cookieJar();
+      const admin = serviceClient();
+      const realAdminUpdate = admin.auth.admin.updateUserById.bind(admin.auth.admin);
+      admin.auth.admin.updateUserById = (uid, attrs) =>
+        attrs.password ? Promise.resolve(failure()) : realAdminUpdate(uid, attrs);
+      const { auth } = authInJar(jar, {
+        getClient: clientFailingUpdateOnce(jar),
+        getAdminClient: () => admin,
+      });
+
+      expect(await auth.verifyEmailLink(token, "email")).toEqual({ ok: false });
+      expect(await auth.currentUser()).toBeNull();
+      expect([...jar.jar.keys()].some((n) => n.includes("-auth-token"))).toBe(false);
+      const stored = await serviceClient().auth.admin.getUserById(id);
+      expect(stored.data.user?.app_metadata.resignup).toBe(true);
+      // Residual (documented): the account is confirmed and the first comer's password still works
+      // until the owner uses password recovery.
+    });
   });
 });
