@@ -32,5 +32,5 @@ export async function proxy(request: NextRequest) {
 
 // Every route except static files (the @supabase/ssr pattern): the refresh must run on any navigation.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };
