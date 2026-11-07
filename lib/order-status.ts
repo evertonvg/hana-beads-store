@@ -8,3 +8,7 @@ export const isPaidStatus = (s: OrderStatus): boolean => PAID_OR_LATER.includes(
 /** Nothing left to wait for on the payment screen: stop polling. */
 export const isFinalStatus = (s: OrderStatus | undefined): boolean =>
   s !== undefined && s !== "aguardando_pagamento";
+
+/** The order's confirmation screen; `accountPending` keeps the "activate your account" line. */
+export const confirmedPath = (orderId: string, accountPending = false): string =>
+  `/pedido/${orderId}/confirmado${accountPending ? "?conta=pendente" : ""}`;

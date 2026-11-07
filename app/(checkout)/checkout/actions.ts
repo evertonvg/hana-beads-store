@@ -11,6 +11,7 @@ import { getData } from "@/lib/data";
 import type { Address } from "@/lib/data/types";
 import { isValidCep } from "@/lib/format";
 import { rememberGuestToken } from "@/lib/guest-orders";
+import { allowAttempt, RATE_LIMITED } from "@/lib/rate-limit";
 import { getSession } from "@/lib/session";
 import { CHECKOUT_CONSENT_VERSION, checkoutSchema } from "@/lib/validation/checkout";
 import { fieldErrorsFrom, type FormState, GENERIC_ERROR } from "@/lib/validation/form-state";
@@ -107,6 +108,9 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
     // Owner recorded on a guest order: the account created just now (null if the e-mail had one).
     let pendingUserId: string | null = null;
     if (accountPending) {
+      // Each one may (re)send a confirmation e-mail: counted like the sign-up form, before
+      // anything is created, with the same answer whether or not the e-mail has an account.
+      if (!(await allowAttempt("cadastro", v.email))) return fail(RATE_LIMITED);
       // Optional "save my data" path. Terms are accepted by the notice next to the button, not
       // by a checkbox (flagged for legal review); marketing e-mail is never opted in here.
       // The account stays pending e-mail confirmation, so the order goes on as a guest order,

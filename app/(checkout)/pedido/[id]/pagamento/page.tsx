@@ -6,7 +6,7 @@ import { PixPanel } from "@/components/checkout/PixPanel";
 import { getData } from "@/lib/data";
 import { toPaymentView } from "@/lib/order-view-model";
 import { getOrderViewer } from "@/lib/order-viewer";
-import { isPaidStatus } from "@/lib/order-status";
+import { confirmedPath, isPaidStatus } from "@/lib/order-status";
 import { currentTimeMs } from "@/lib/pix-countdown";
 
 /** Reads cookies to check ownership, so the route blocks instead of streaming (build requirement). */
@@ -22,11 +22,16 @@ export const metadata: Metadata = {
  * about the order. The status code stays 200 because Next has already sent the prerendered shell
  * (same limit as /produto/[slug]); the 404 status is only real on the status API route.
  */
-export default async function PagamentoPage({ params }: PageProps<"/pedido/[id]/pagamento">) {
-  const { id } = await params;
+export default async function PagamentoPage({
+  params,
+  searchParams,
+}: PageProps<"/pedido/[id]/pagamento">) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  // Set by the checkout when "save my data" left an account pending: kept up to the confirmation.
+  const accountPending = query.conta === "pendente";
   const order = await getData().orders.get(id, await getOrderViewer());
   if (!order) notFound();
-  if (isPaidStatus(order.status)) redirect(`/pedido/${order.id}/confirmado`);
+  if (isPaidStatus(order.status)) redirect(confirmedPath(order.id, accountPending));
   if (order.status !== "aguardando_pagamento") notFound();
 
   const { payment } = order;
@@ -34,10 +39,19 @@ export default async function PagamentoPage({ params }: PageProps<"/pedido/[id]/
   if (!payment) redirect("/checkout");
 
   if (payment.kind === "pix") {
-    return <PixPanel order={toPaymentView(order)} payment={payment} serverNow={currentTimeMs()} />;
+    return (
+      <PixPanel
+        order={toPaymentView(order)}
+        payment={payment}
+        serverNow={currentTimeMs()}
+        accountPending={accountPending}
+      />
+    );
   }
   if (payment.kind === "boleto")
-    return <BoletoPanel order={toPaymentView(order)} payment={payment} />;
+    return (
+      <BoletoPanel order={toPaymentView(order)} payment={payment} accountPending={accountPending} />
+    );
   if (payment.result === "recusado") return <DeclinedPanel orderId={order.id} />;
   // An approved card makes the order paid, which redirected above.
   notFound();

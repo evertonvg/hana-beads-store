@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import type { OrderStatus } from "@/lib/data/types";
-import { isFinalStatus, isPaidStatus } from "@/lib/order-status";
+import { confirmedPath, isFinalStatus, isPaidStatus } from "@/lib/order-status";
 
 class StatusError extends Error {
   constructor(readonly httpStatus: number) {
@@ -30,10 +30,11 @@ export type WaitState =
 
 /**
  * Polls the order status every 3 seconds while it awaits payment (TanStack Query pauses it with
- * the tab hidden and refetches on focus). When it turns paid, goes to the confirmation screen.
+ * the tab hidden and refetches on focus). When it turns paid, goes to the confirmation screen
+ * (keeping `?conta=pendente` when the checkout left an account pending confirmation).
  * A 404 stops the polling; other failures keep retrying but are reported.
  */
-export function usePaymentStatus(orderId: string, initial: OrderStatus) {
+export function usePaymentStatus(orderId: string, initial: OrderStatus, accountPending = false) {
   const router = useRouter();
   const query = useQuery({
     queryKey: ["order-status", orderId],
@@ -50,8 +51,8 @@ export function usePaymentStatus(orderId: string, initial: OrderStatus) {
 
   const status = query.data;
   useEffect(() => {
-    if (isPaidStatus(status)) router.replace(`/pedido/${orderId}/confirmado`);
-  }, [status, orderId, router]);
+    if (isPaidStatus(status)) router.replace(confirmedPath(orderId, accountPending));
+  }, [status, orderId, accountPending, router]);
 
   let wait: WaitState = "waiting";
   if (status === "cancelado" || status === "reembolsado") wait = "closed";

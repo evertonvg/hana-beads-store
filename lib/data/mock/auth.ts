@@ -77,7 +77,19 @@ export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
       }
       const pending = store.pendingUsers.find((u) => u.email === email);
       if (pending) {
-        // Like Supabase: signing up again before confirming just sends a new link.
+        // Like GoTrue for an unconfirmed user: the new sign-up replaces the password and data
+        // (whoever pre-created the pending account loses it) and a new link replaces the old ones.
+        pending.name = input.name.trim();
+        pending.phone = input.phone;
+        pending.password = input.password;
+        if (input.cpf) pending.cpf = input.cpf;
+        else delete pending.cpf;
+        store.consents = store.consents.filter((c) => c.userId !== pending.id);
+        delete store.addresses[pending.id];
+        for (const [token, link] of Object.entries(store.emailTokens)) {
+          if (link.userId === pending.id) delete store.emailTokens[token];
+        }
+        recordSignUpData(store, pending, input);
         sendLink(store, pending, "email", next);
         return Promise.resolve({ status: "confirmacao_pendente", userId: pending.id });
       }

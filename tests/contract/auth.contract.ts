@@ -98,6 +98,28 @@ export function describeAuthContract(env: AuthContractEnv) {
       });
     });
 
+    it("a new sign-up for a pending e-mail replaces its password and data (no pre-hijack)", async () => {
+      const first = await env.withSession((auth) =>
+        auth.signUp(
+          { ...input(email), password: "Primeira@123", name: "Quem Chegou Antes" },
+          "/conta",
+        ),
+      );
+      const again = await env.withSession((auth) =>
+        auth.signUp({ ...input(email), password: "Segunda@123", name: "Dona do E-mail" }, "/conta"),
+      );
+      expect(again).toEqual({ status: "confirmacao_pendente", userId: first.userId });
+      const token = await latest(email, "confirmacao");
+      await env.withSession(async (auth) => {
+        expect(await auth.verifyEmailLink(token, "email")).toBe(true);
+        expect(await auth.currentUser()).toMatchObject({ name: "Dona do E-mail", email });
+      });
+      await env.withSession(async (auth) => {
+        expect(await auth.signIn(email, "Primeira@123", false)).toBeNull();
+        expect(await auth.signIn(email, "Segunda@123", false)).toMatchObject({ email });
+      });
+    });
+
     it("rejects a made-up token", async () => {
       await env.withSession(async (auth) => {
         expect(await auth.verifyEmailLink(crypto.randomUUID(), "email")).toBe(false);

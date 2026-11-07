@@ -19,10 +19,13 @@ export default async function ConfirmadoPage({
   searchParams,
 }: PageProps<"/pedido/[id]/confirmado">) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
+  // Set by the checkout when "save my data" left an account pending e-mail confirmation.
+  const accountPending = query.conta === "pendente";
   const order = await getData().orders.get(id, await getOrderViewer());
   if (!order) notFound();
-  if (order.status === "aguardando_pagamento") redirect(`/pedido/${order.id}/pagamento`);
+  if (order.status === "aguardando_pagamento") {
+    redirect(`/pedido/${order.id}/pagamento${accountPending ? "?conta=pendente" : ""}`);
+  }
   if (!isPaidStatus(order.status)) notFound();
-  // Set by the checkout when "save my data" left an account pending e-mail confirmation.
-  return <ConfirmedPanel order={order} accountPending={query.conta === "pendente"} />;
+  return <ConfirmedPanel order={order} accountPending={accountPending} />;
 }

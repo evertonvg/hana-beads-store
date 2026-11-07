@@ -14,6 +14,8 @@ import { usePaymentStatus } from "./usePaymentStatus";
 type Props = {
   order: Pick<PaymentViewOrder, "id" | "number" | "totalCents" | "status">;
   payment: BoletoPayment;
+  /** Forwarded to the confirmation screen (`?conta=pendente`). */
+  accountPending?: boolean;
 };
 
 const PHASES = [
@@ -28,8 +30,8 @@ const factLabel = "font-pixel text-[8px] text-text-subtle";
 const factValue = "font-pixel text-xs";
 
 /** Boleto screen, "JOGO PAUSADO" (Aguardando.dc.html). Polls until the boleto is paid. */
-export function BoletoPanel({ order, payment }: Props) {
-  const status = usePaymentStatus(order.id, order.status);
+export function BoletoPanel({ order, payment, accountPending = false }: Props) {
+  const status = usePaymentStatus(order.id, order.status, accountPending);
 
   return (
     <div className="mx-auto flex w-full max-w-[900px] flex-col items-center gap-7 px-4 pt-8 pb-24 text-center md:gap-8 md:px-6 md:pt-[72px]">

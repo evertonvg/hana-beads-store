@@ -22,6 +22,8 @@ type Props = {
   payment: PixPayment;
   /** Server time (ms) when the page was rendered: the countdown follows the server clock. */
   serverNow: number;
+  /** Forwarded to the confirmation screen (`?conta=pendente`). */
+  accountPending?: boolean;
 };
 
 const STEPS_DESKTOP = [
@@ -31,7 +33,12 @@ const STEPS_DESKTOP = [
 ];
 
 /** Pix payment screen (Pix.dc.html on desktop, CelPix.dc.html on mobile). */
-export function PixPanel({ order, payment: initialPayment, serverNow }: Props) {
+export function PixPanel({
+  order,
+  payment: initialPayment,
+  serverNow,
+  accountPending = false,
+}: Props) {
   const [payment, setPayment] = useState(initialPayment);
   // Same value on the server and on the first client render; the clock takes over after mount.
   const [now, setNow] = useState(serverNow);
@@ -41,7 +48,7 @@ export function PixPanel({ order, payment: initialPayment, serverNow }: Props) {
   const [renewError, setRenewError] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
   const [checking, setChecking] = useState(false);
-  const status = usePaymentStatus(order.id, order.status);
+  const status = usePaymentStatus(order.id, order.status, accountPending);
 
   useEffect(() => {
     skew.current = serverNow - Date.now();

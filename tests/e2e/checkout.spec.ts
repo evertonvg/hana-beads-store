@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, expectA11y, login, snap, test } from "./support/fixtures";
 import { gotoHydrated } from "./support/hydration";
+import { orderIdOf, setOrderStatus } from "./support/order";
 import { expectTouchTargets } from "./support/touch-targets";
 
 const KEY = "pp_cart_v1";
@@ -142,6 +143,27 @@ test("criar conta no checkout com cartão aprovado avisa do link de ativação",
   expect(inbox).toHaveLength(1);
   expect(inbox[0]).toMatchObject({ kind: "confirmacao" });
   expect(inbox[0]?.link).toContain("next=%2Fconta%2Fpedidos");
+});
+
+test("criar conta no checkout com Pix leva o aviso de ativação até a confirmação", async ({
+  page,
+}) => {
+  await openCheckout(page);
+  await page.getByRole("checkbox", { name: /Salvar meus dados/ }).click();
+  await fillGuest(page);
+  await field(page, "Crie uma senha").fill("Senha@123");
+  await save(page).click();
+  await expect(page).toHaveURL(/\/pedido\/[^/]+\/pagamento\?conta=pendente$/);
+  const id = orderIdOf(page);
+  await setOrderStatus(page, id, "pago");
+  await expect(page).toHaveURL(new RegExp(`/pedido/${id}/confirmado\\?conta=pendente$`), {
+    timeout: 6000,
+  });
+  await expect(page.getByText("Enviamos um link para ativar sua conta.")).toBeVisible();
+  // A reload of the payment screen after the payment also keeps the line.
+  await page.goto(`/pedido/${id}/pagamento?conta=pendente`);
+  await expect(page).toHaveURL(new RegExp(`/pedido/${id}/confirmado\\?conta=pendente$`));
+  await expect(page.getByText("Enviamos um link para ativar sua conta.")).toBeVisible();
 });
 
 test("/checkout com carrinho vazio volta para /carrinho", async ({ page }) => {

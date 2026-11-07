@@ -13,6 +13,8 @@ vi.mock("next/headers", () => ({
       get: (name: string) => (jar.has(name) ? { name, value: jar.get(name) } : undefined),
       set: (name: string, value: string) => void jar.set(name, value),
     }),
+  // No proxy header: the rate limit only counts the e-mail key.
+  headers: () => Promise.resolve(new Headers()),
 }));
 
 import { lookupCepAction, placeOrderAction } from "@/app/(checkout)/checkout/actions";
@@ -148,6 +150,38 @@ describe("placeOrderAction", () => {
     expect(order).toMatchObject({ userId: null });
     expect(order?.guestToken).toBeTruthy();
     expect(getMockStore().inbox.filter((m) => m.to === "ana@teste.dev")).toEqual([]);
+  });
+
+  it("rate limits 'save my data' per e-mail, the same way for new and existing e-mails", async () => {
+    const tokenN = (i: number) => `3f6c1b1e-6d3b-4c6e-9d27-6f1b7a2d9c${String(i).padStart(2, "0")}`;
+    for (const email of ["nova@teste.dev", "ana@teste.dev"]) {
+      getMockStore().reset();
+      for (let i = 0; i < 5; i++) {
+        const ok = await placeOrderAction({
+          ...base,
+          email,
+          checkoutToken: tokenN(i),
+          saveAccount: true,
+          password: "Senha@123",
+        });
+        expect(ok.status).toBe("ok");
+      }
+      const refused = await placeOrderAction({
+        ...base,
+        email,
+        checkoutToken: tokenN(5),
+        saveAccount: true,
+        password: "Senha@123",
+      });
+      expect(refused).toEqual({
+        status: "error",
+        message: "Muitas tentativas. Tente de novo em alguns minutos.",
+      });
+      expect(placedOrders()).toHaveLength(5);
+      expect(getMockStore().inbox.length).toBeLessThanOrEqual(5);
+    }
+    // Without "save my data" nothing is counted: guest orders go on.
+    expect((await placeOrderAction({ ...base, checkoutToken: tokenN(6) })).status).toBe("ok");
   });
 
   it("does not mark the account pending without 'save my data'", async () => {
