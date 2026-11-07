@@ -67,7 +67,25 @@ create policy consents_select on public.consents
 create policy consents_insert on public.consents
   for insert to authenticated with check (user_id = (select auth.uid()));
 -- Append-only: no UPDATE/DELETE for any API role, not even through a policy.
-revoke update, delete on public.consents from anon, authenticated;
+revoke all on public.consents from anon, authenticated, service_role;
+grant select, insert on public.consents to authenticated, service_role;
+
+-- Timestamps are server-controlled: revocation is a new row, but it cannot be backdated.
+create or replace function public.consents_force_timestamps()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.granted_at := now();
+  if new.revoked_at is not null then new.revoked_at := now(); end if;
+  return new;
+end
+$$;
+
+create trigger consents_force_timestamps
+  before insert on public.consents
+  for each row execute function public.consents_force_timestamps();
 
 -- Signup trigger -----------------------------------------------------------------
 -- Reads validated fields from raw_user_meta_data. Invalid fields are dropped;
@@ -88,6 +106,8 @@ declare
   v_addr jsonb := meta -> 'address';
   v_cep text;
   v_state text;
+  v_label text;
+  v_complement text;
 begin
   if jsonb_typeof(meta -> 'name') = 'string' then
     v_name := btrim(meta ->> 'name');
@@ -134,6 +154,13 @@ begin
       if jsonb_typeof(v_addr -> 'state') = 'string' then
         v_state := v_addr ->> 'state';
       end if;
+      -- Optional fields: an invalid one is dropped alone, the address is still saved.
+      if jsonb_typeof(v_addr -> 'label') = 'string' and char_length(v_addr ->> 'label') between 1 and 60 then
+        v_label := v_addr ->> 'label';
+      end if;
+      if jsonb_typeof(v_addr -> 'complement') = 'string' and char_length(v_addr ->> 'complement') between 1 and 80 then
+        v_complement := v_addr ->> 'complement';
+      end if;
       if v_cep ~ '^[0-9]{8}$' and v_state ~ '^[A-Z]{2}$'
          and jsonb_typeof(v_addr -> 'street') = 'string'
          and jsonb_typeof(v_addr -> 'number') = 'string'
@@ -142,11 +169,11 @@ begin
         insert into public.addresses (user_id, label, cep, street, number, complement, district, city, state, is_default)
         values (
           new.id,
-          case when jsonb_typeof(v_addr -> 'label') = 'string' then v_addr ->> 'label' end,
+          v_label,
           v_cep,
           v_addr ->> 'street',
           v_addr ->> 'number',
-          case when jsonb_typeof(v_addr -> 'complement') = 'string' then v_addr ->> 'complement' end,
+          v_complement,
           v_addr ->> 'district',
           v_addr ->> 'city',
           v_state,

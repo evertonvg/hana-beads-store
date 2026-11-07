@@ -1,5 +1,5 @@
 begin;
-select plan(33);
+select plan(39);
 
 select has_table('public', 'profiles', 'profiles exists');
 select has_table('public', 'addresses', 'addresses exists');
@@ -48,6 +48,18 @@ select lives_ok($$insert into auth.users (id, instance_id, aud, role, email)
 select is((select count(*) from public.consents where user_id = '00000000-0000-0000-0000-0000000000d1'), 0::bigint,
   'no consents without terms_version');
 
+-- Oversized optional fields are dropped alone; the address is still saved.
+insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+values ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'e@test.dev',
+  ('{"name":"Eva","terms_version":"2026-01","address":{"label":"' || repeat('x', 61) || '","complement":"' || repeat('y', 81) || '","cep":"01310100","street":"Rua","number":"1","district":"D","city":"C","state":"SP"}}')::jsonb);
+select ok((select label is null and complement is null and cep = '01310100' from public.addresses where user_id = '00000000-0000-0000-0000-0000000000e1'),
+  'oversized label/complement dropped, address saved');
+
+-- Consents privileges: append-only for every API role.
+select table_privs_are('public', 'consents', 'authenticated', array['SELECT', 'INSERT'], 'authenticated: select/insert only');
+select table_privs_are('public', 'consents', 'anon', array[]::text[], 'anon: no privileges');
+select table_privs_are('public', 'consents', 'service_role', array['SELECT', 'INSERT'], 'service_role: no update/delete/truncate');
+
 -- Isolation: act as B.
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b1"}', true);
@@ -62,6 +74,9 @@ select throws_ok($$insert into public.consents (user_id, type, granted, version)
   '42501', null, 'B cannot insert consent for A');
 select lives_ok($$insert into public.consents (user_id, type, granted, version) values ('00000000-0000-0000-0000-0000000000b1', 'email_marketing', true, 'x')$$,
   'owner can append own consent');
+
+select lives_ok($$insert into public.consents (user_id, type, granted, version, granted_at, revoked_at) values ('00000000-0000-0000-0000-0000000000b1', 'email_marketing', false, 'x', '2000-01-01', '2000-01-02')$$, 'owner appends a revocation row');
+select ok((select granted_at > now() - interval '1 minute' and revoked_at > now() - interval '1 minute' from public.consents where user_id = '00000000-0000-0000-0000-0000000000b1' and not granted), 'granted_at and revoked_at forced to now()');
 
 -- Consents are append-only, even for the owner.
 select throws_ok($$update public.consents set granted = false$$, '42501', null, 'owner cannot update consents');
