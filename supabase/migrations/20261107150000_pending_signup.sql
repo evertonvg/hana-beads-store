@@ -1,7 +1,8 @@
 -- Pending sign-ups: a new sign-up for an e-mail whose account was never confirmed replaces the
--- password (done by the app through the Auth admin API) and the sign-up data (this migration).
--- GoTrue itself only re-sends the confirmation e-mail: it keeps the first comer's password and
--- metadata, so without this anyone could pre-register someone else's e-mail (account pre-hijack).
+-- sign-up data (this migration) and flags the account (app_metadata.resignup, set by the app through
+-- the Auth admin API) so that confirming it replaces the password with a random one: neither the
+-- first comer's password nor the latest one survives. GoTrue itself only re-sends the confirmation
+-- e-mail and keeps the first comer's password and metadata (account pre-hijack).
 
 -- Shared validation -----------------------------------------------------------------
 -- Same rules handle_new_user had: reads validated fields from the metadata, drops invalid ones and
@@ -149,7 +150,8 @@ create trigger on_auth_user_pending_updated
   execute function public.handle_pending_user_update();
 
 -- Pending lookup ----------------------------------------------------------------------
--- The id of the unconfirmed account for an e-mail (null when none). Server only (secret key).
+-- The id of the unconfirmed e-mail/password account for an e-mail (null when none). Accounts with
+-- any social identity are left out. Server only (secret key).
 create or replace function public.pending_user_id(p_email text)
 returns uuid
 language sql
@@ -157,11 +159,15 @@ stable
 security definer
 set search_path = ''
 as $$
-  select id from auth.users
-  where email = lower(btrim(p_email))
-    and email_confirmed_at is null
-    and deleted_at is null
-    and not is_anonymous
+  select u.id from auth.users u
+  where u.email = lower(btrim(p_email))
+    and u.email_confirmed_at is null
+    and u.deleted_at is null
+    and not u.is_anonymous
+    and u.raw_app_meta_data ->> 'provider' = 'email'
+    and not exists (
+      select 1 from auth.identities i where i.user_id = u.id and i.provider <> 'email'
+    )
   limit 1
 $$;
 

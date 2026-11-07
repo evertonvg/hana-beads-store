@@ -87,7 +87,10 @@ export function describeAuthContract(env: AuthContractEnv) {
       });
       const token = await latest(email, "confirmacao");
       await env.withSession(async (auth) => {
-        expect(await auth.verifyEmailLink(token, "email")).toBe(true);
+        expect(await auth.verifyEmailLink(token, "email")).toEqual({
+          ok: true,
+          mustSetPassword: false,
+        });
         expect(await auth.currentUser()).toEqual({
           id: userId,
           name: "Pessoa Contrato",
@@ -95,12 +98,12 @@ export function describeAuthContract(env: AuthContractEnv) {
         });
       });
       await env.withSession(async (auth) => {
-        expect(await auth.verifyEmailLink(token, "email")).toBe(false);
+        expect(await auth.verifyEmailLink(token, "email")).toEqual({ ok: false });
         expect(await auth.currentUser()).toBeNull();
       });
     });
 
-    it("a new sign-up for a pending e-mail replaces its password and data (no pre-hijack)", async () => {
+    it("a new sign-up for a pending e-mail keeps nobody's password (no pre-hijack)", async () => {
       const first = await env.withSession((auth) =>
         auth.signUp(
           { ...input(email), password: "Primeira@123", name: "Quem Chegou Antes" },
@@ -113,19 +116,30 @@ export function describeAuthContract(env: AuthContractEnv) {
       expect(again).toEqual({ status: "confirmacao_pendente", userId: first.userId });
       const token = await latest(email, "confirmacao");
       await env.withSession(async (auth) => {
-        expect(await auth.verifyEmailLink(token, "email")).toBe(true);
+        expect(await auth.verifyEmailLink(token, "email")).toEqual({
+          ok: true,
+          mustSetPassword: true,
+        });
         expect(await auth.currentUser()).toMatchObject({ name: "Dona do E-mail", email });
+        // Neither sign-up's password opens the account…
+        await env.withSession(async (other) => {
+          expect(await other.signIn(email, "Primeira@123", false)).toBeNull();
+          expect(await other.signIn(email, "Segunda@123", false)).toBeNull();
+        });
+        // …until the confirmed user chooses one in the session the link opened.
+        expect(await auth.updatePassword("Terceira@123")).toEqual({ ok: true });
       });
       await env.withSession(async (auth) => {
-        expect(await auth.signIn(email, "Primeira@123", false)).toBeNull();
-        expect(await auth.signIn(email, "Segunda@123", false)).toMatchObject({ email });
+        expect(await auth.signIn(email, "Terceira@123", false)).toMatchObject({ email });
       });
     });
 
     it("rejects a made-up token", async () => {
       await env.withSession(async (auth) => {
-        expect(await auth.verifyEmailLink(crypto.randomUUID(), "email")).toBe(false);
-        expect(await auth.verifyEmailLink(crypto.randomUUID(), "recovery")).toBe(false);
+        expect(await auth.verifyEmailLink(crypto.randomUUID(), "email")).toEqual({ ok: false });
+        expect(await auth.verifyEmailLink(crypto.randomUUID(), "recovery")).toEqual({
+          ok: false,
+        });
         expect(await auth.currentUser()).toBeNull();
       });
     });
@@ -160,7 +174,10 @@ export function describeAuthContract(env: AuthContractEnv) {
       await env.withSession((auth) => auth.requestPasswordReset("ana@teste.dev"));
       const token = await latest("ana@teste.dev", "recuperacao");
       await env.withSession(async (auth) => {
-        expect(await auth.verifyEmailLink(token, "recovery")).toBe(true);
+        expect(await auth.verifyEmailLink(token, "recovery")).toEqual({
+          ok: true,
+          mustSetPassword: false,
+        });
         expect(await auth.updatePassword("Nova@1234")).toEqual({ ok: true });
       });
       await env.withSession(async (auth) => {

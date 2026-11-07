@@ -95,6 +95,11 @@ export type SignUpResult = { status: "confirmacao_pendente"; userId: string | nu
 /** null = wrong e-mail or password (the caller must not tell which). */
 export type SignInResult = AuthUser | null | { error: "email_nao_confirmado" };
 export type EmailLinkType = "email" | "recovery";
+/**
+ * mustSetPassword = the account was signed up again while pending: its password was replaced by a
+ * random one at confirmation, so the user must choose one now (the session is already open).
+ */
+export type EmailLinkResult = { ok: false } | { ok: true; mustSetPassword: boolean };
 
 /** Accounts and the session. The adapter owns the session cookies; callers never see them. */
 export interface AuthPort {
@@ -105,8 +110,8 @@ export interface AuthPort {
   signInWithProvider(p: AuthProvider, next: string): Promise<{ url: string }>;
   /** true = session created. */
   completeOAuth(code: string): Promise<boolean>;
-  /** true = link valid; for "email" signs the user in, for "recovery" opens a recovery session. */
-  verifyEmailLink(tokenHash: string, type: EmailLinkType): Promise<boolean>;
+  /** ok = link valid; for "email" signs the user in, for "recovery" opens a recovery session. */
+  verifyEmailLink(tokenHash: string, type: EmailLinkType): Promise<EmailLinkResult>;
   /** Resolves the same way whether or not the e-mail has a pending account. */
   resendConfirmation(email: string, next: string): Promise<void>;
   /** Resolves the same way whether or not the e-mail has an account. */

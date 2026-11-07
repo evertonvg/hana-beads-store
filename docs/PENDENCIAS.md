@@ -74,6 +74,7 @@ Lacunas entre o que a política de privacidade lista e o que o código coleta ho
 - **Cartão.** O servidor nunca recebe número nem CVV, só um token do gateway (`CardInput`). Manter: tokenização no navegador (Mercado Pago).
 - **Limite de tentativas.** O cadastro revela se o e-mail já tem conta e não há rate limit; limitar login, cadastro e recuperação de senha.
 - **Webhook do Mercado Pago** com assinatura verificada e idempotência (o mock não simula).
+- **Conta criada com o e-mail de outra pessoa (risco residual).** Quem se cadastra sozinho com o e-mail de outra pessoa sabe a senha da conta se essa pessoa clicar no link de confirmação que não pediu. Um segundo cadastro para o mesmo e-mail pendente já faz a confirmação trocar a senha por uma aleatória e pedir uma nova. Mitigações para depois: sempre pedir uma senha nova depois de confirmar o e-mail, ou cadastro sem senha (link mágico).
 
 ## 4. Dívida técnica conhecida
 

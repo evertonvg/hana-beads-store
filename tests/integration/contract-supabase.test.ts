@@ -99,7 +99,7 @@ describe("supabase auth adapter", () => {
     expect(authCookie(jar)?.[1].value).not.toBe(before);
   });
 
-  it("a later sign-up for a pending e-mail replaces its data in the database", async () => {
+  it("a later sign-up for a pending e-mail replaces its data, not its password", async () => {
     const email = `pendente-${crypto.randomUUID().slice(0, 8)}@teste.dev`;
     const base = {
       email,
@@ -143,16 +143,48 @@ describe("supabase auth adapter", () => {
     const addresses = await admin.from("addresses").select("id").eq("user_id", id);
     expect(addresses.data).toEqual([]);
 
-    const token = new URL(await latestLink(email), "http://x.invalid").searchParams.get(
-      "token_hash",
-    );
-    const { auth } = authInJar();
-    expect(await auth.verifyEmailLink(token as string, "email")).toBe(true);
-    expect(await auth.signIn(email, "Primeira@123", false)).toBeNull();
-    expect(await auth.signIn(email, "Segunda@123", false)).toMatchObject({
-      name: "Dona do E-mail",
-    });
+    await expectScrambledOnConfirm(email, id, await latestLink(email));
   });
+
+  it("the 429 path (no new e-mail) still keeps nobody's password, even with the original link", async () => {
+    const email = `pendente-${crypto.randomUUID().slice(0, 8)}@teste.dev`;
+    const base = {
+      email,
+      phone: "(11) 91234-5678",
+      acceptTerms: true as const,
+      marketingEmail: false,
+      termsVersion: "2026-10-28",
+    };
+    const first = await authInJar().auth.signUp(
+      { ...base, name: "Quem Chegou Antes", password: "Primeira@123" },
+      "/conta",
+    );
+    // Within GoTrue's e-mail frequency window: over_email_send_rate_limit, no new e-mail.
+    const again = await authInJar().auth.signUp(
+      { ...base, name: "Dona do E-mail", password: "Segunda@123" },
+      "/conta",
+    );
+    expect(again).toEqual({ status: "confirmacao_pendente", userId: first.userId });
+    const inbox = await readInbox(email);
+    expect(inbox).toHaveLength(1);
+    await expectScrambledOnConfirm(email, first.userId as string, inbox[0].link);
+  });
+
+  /** Confirming a re-signed-up account: neither password works until the user sets one. */
+  async function expectScrambledOnConfirm(email: string, id: string, link: string) {
+    const token = new URL(link, "http://x.invalid").searchParams.get("token_hash") as string;
+    const { auth } = authInJar();
+    expect(await auth.verifyEmailLink(token, "email")).toEqual({ ok: true, mustSetPassword: true });
+    expect(await auth.currentUser()).toMatchObject({ id, name: "Dona do E-mail" });
+    const stored = await serviceClient().auth.admin.getUserById(id);
+    expect(stored.data.user?.app_metadata.resignup).toBeUndefined();
+
+    const other = authInJar().auth;
+    expect(await other.signIn(email, "Primeira@123", false)).toBeNull();
+    expect(await other.signIn(email, "Segunda@123", false)).toBeNull();
+    expect(await auth.updatePassword("Terceira@123")).toEqual({ ok: true });
+    expect(await authInJar().auth.signIn(email, "Terceira@123", false)).toMatchObject({ id });
+  }
 
   it("saves and reads back the signed-in user's cart", async () => {
     const { auth } = authInJar();

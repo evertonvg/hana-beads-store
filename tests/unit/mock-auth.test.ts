@@ -63,7 +63,7 @@ describe("mock auth", () => {
     expect(mail?.kind).toBe("recuperacao");
     expect(mail?.link).toContain("next=%2Fredefinir-senha");
     const token = new URL(mail?.link ?? "", "http://x.invalid").searchParams.get("token_hash");
-    expect(await auth.verifyEmailLink(token ?? "", "email")).toBe(false);
+    expect(await auth.verifyEmailLink(token ?? "", "email")).toEqual({ ok: false });
   });
 
   it("records terms and privacy consent at sign-up, plus marketing only when checked", async () => {

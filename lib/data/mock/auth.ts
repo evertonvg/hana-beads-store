@@ -77,11 +77,12 @@ export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
       }
       const pending = store.pendingUsers.find((u) => u.email === email);
       if (pending) {
-        // Like GoTrue for an unconfirmed user: the new sign-up replaces the password and data
-        // (whoever pre-created the pending account loses it) and a new link replaces the old ones.
+        // Like the Supabase adapter: the latest sign-up replaces the data but NOT the password, and
+        // flags the account so confirming it scrambles the password (nobody's password survives).
+        // A new link replaces the old ones.
         pending.name = input.name.trim();
         pending.phone = input.phone;
-        pending.password = input.password;
+        pending.resignup = true;
         if (input.cpf) pending.cpf = input.cpf;
         else delete pending.cpf;
         store.consents = store.consents.filter((c) => c.userId !== pending.id);
@@ -125,16 +126,21 @@ export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
     async verifyEmailLink(tokenHash, type) {
       const store = getMockStore();
       const token = store.emailTokens[tokenHash];
-      if (!token || token.type !== type) return false;
+      if (!token || token.type !== type) return { ok: false };
       delete store.emailTokens[tokenHash];
       if (type === "email") {
         const i = store.pendingUsers.findIndex((u) => u.id === token.userId);
         if (i >= 0) store.users.push(...store.pendingUsers.splice(i, 1));
       }
       const user = store.users.find((u) => u.id === token.userId);
-      if (!user) return false;
+      if (!user) return { ok: false };
+      const mustSetPassword = type === "email" && user.resignup === true;
+      if (mustSetPassword) {
+        user.password = crypto.randomUUID();
+        delete user.resignup;
+      }
       await writeSession(await cookieStore(), user.id, false);
-      return true;
+      return { ok: true, mustSetPassword };
     },
 
     resendConfirmation(email, next) {

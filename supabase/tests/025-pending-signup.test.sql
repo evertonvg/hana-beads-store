@@ -1,15 +1,15 @@
 begin;
-select plan(17);
+select plan(19);
 
 select has_trigger('auth', 'users', 'on_auth_user_pending_updated', 'pending-metadata trigger exists');
 select has_function('public', 'apply_signup_metadata', array['uuid', 'jsonb'], 'shared signup validation exists');
 select has_function('public', 'pending_user_id', array['text'], 'pending lookup exists');
 
 -- A pending sign-up with CPF, marketing and an address (the "first comer").
-insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data)
+insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data)
 values (
   '00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'pending@test.dev',
+  'authenticated', 'authenticated', 'pending@test.dev', '{"provider":"email","providers":["email"]}',
   '{"name":"Quem Chegou Antes","cpf":"123.456.789-09","terms_version":"t1","marketing_email":true,
     "address":{"cep":"01310-100","street":"Av. Paulista","number":"1000","district":"Bela Vista","city":"São Paulo","state":"SP"}}'
 );
@@ -42,6 +42,20 @@ select is((select count(*) from public.consents where user_id = '00000000-0000-0
 select is(public.pending_user_id(' PENDING@test.dev '), '00000000-0000-0000-0000-0000000000c1'::uuid, 'finds the pending user (trimmed, any case)');
 select is(public.pending_user_id('ana@teste.dev'), null::uuid, 'a confirmed user is not pending');
 select is(public.pending_user_id('nobody@test.dev'), null::uuid, 'unknown e-mail');
+
+-- Unconfirmed accounts with a social identity are not plain e-mail sign-ups.
+insert into auth.users (id, instance_id, aud, role, email, raw_app_meta_data, raw_user_meta_data)
+values
+  ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'social@test.dev', '{"provider":"google","providers":["google"]}', '{"name":"Social"}'),
+  ('00000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'mixed@test.dev', '{"provider":"email","providers":["email","google"]}', '{"name":"Misto"}');
+insert into auth.identities (user_id, provider, provider_id, identity_data) values
+  ('00000000-0000-0000-0000-0000000000d1', 'google', 'g-d1', '{"sub":"g-d1"}'),
+  ('00000000-0000-0000-0000-0000000000d2', 'email', '00000000-0000-0000-0000-0000000000d2', '{"sub":"00000000-0000-0000-0000-0000000000d2"}'),
+  ('00000000-0000-0000-0000-0000000000d2', 'google', 'g-d2', '{"sub":"g-d2"}');
+select is(public.pending_user_id('social@test.dev'), null::uuid, 'OAuth-only pending account is not a pending e-mail sign-up');
+select is(public.pending_user_id('mixed@test.dev'), null::uuid, 'pending account with a social identity is left out');
 
 -- Confirmation: once confirmed, metadata changes no longer touch the profile.
 update auth.users set email_confirmed_at = now() where id = '00000000-0000-0000-0000-0000000000c1';

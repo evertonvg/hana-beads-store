@@ -18,6 +18,8 @@ export type MockUser = {
   phone: string;
   password: string;
   cpf?: string;
+  /** Pending account signed up again: confirming it scrambles the password (see AuthPort). */
+  resignup?: true;
 };
 
 export const userFixtures: readonly MockUser[] = [

@@ -5,6 +5,7 @@ import {
   type SupabaseClient,
 } from "@supabase/supabase-js";
 import { cookies as nextCookies } from "next/headers";
+import { randomBytes } from "node:crypto";
 
 import type { CartData } from "@/lib/cart/types";
 import type { AuthPort, AuthUser, SignUpInput } from "@/lib/data/ports";
@@ -36,7 +37,7 @@ export type SupabaseAuthDeps = {
   getClient: () => Promise<Client>;
   /** Secret-key, cookie-bound client: ONLY rate-limited `auth.*` calls (forwards the user's IP). */
   getAuthClient: () => Promise<Client>;
-  /** Secret-key client without cookies: pending-account lookup and the admin password update. */
+  /** Secret-key client without cookies: pending-account lookup, re-sign-up flag, admin updates. */
   getAdminClient: () => Client;
   /** Public site origin for e-mail and OAuth redirects, e.g. "http://localhost:3000". */
   siteUrl: string;
@@ -45,6 +46,9 @@ export type SupabaseAuthDeps = {
 };
 
 const normalize = (email: string) => email.trim().toLowerCase();
+
+/** app_metadata key: the pending account was signed up again (only the admin API can set it). */
+const RESIGNUP_FLAG = "resignup";
 
 /** Where the recovery link lands (the new-password screen). */
 const RECOVERY_NEXT = "/redefinir-senha";
@@ -151,13 +155,14 @@ export function createSupabaseAuth(deps: SupabaseAuthDeps): AuthPort {
       const admin = deps.getAdminClient();
 
       // GoTrue keeps the first comer's password and data when an unconfirmed e-mail signs up again
-      // (it only re-sends the e-mail). Replace them, so whoever owns the inbox decides the password.
+      // (it only re-sends the e-mail). Take the latest data, but trust neither password: flag the
+      // account so that confirming it scrambles the password (see verifyEmailLink).
       const pending = await admin.rpc("pending_user_id", { p_email: email });
       if (pending.error) toPortError(pending.error);
       const pendingId = pending.data as string | null;
       if (pendingId) {
         const { error } = await admin.auth.admin.updateUserById(pendingId, {
-          password: input.password,
+          app_metadata: { [RESIGNUP_FLAG]: true },
           user_metadata: signUpMetadata(input, true),
         });
         if (error) toPortError(error);
@@ -173,8 +178,9 @@ export function createSupabaseAuth(deps: SupabaseAuthDeps): AuthPort {
         if (error.code === "user_already_exists" || error.code === "email_exists") {
           return { status: "confirmacao_pendente", userId: null };
         }
-        // A confirmation e-mail went out moments ago; the latest one still confirms this account.
-        if (pendingId && error.code === "over_email_send_rate_limit") {
+        // An e-mail went out moments ago (the latest one still confirms a pending account). Same
+        // answer for a new or a pending e-mail, so the response tells nothing about the account.
+        if (error.code === "over_email_send_rate_limit") {
           return { status: "confirmacao_pendente", userId: pendingId };
         }
         toPortError(error);
@@ -204,11 +210,28 @@ export function createSupabaseAuth(deps: SupabaseAuthDeps): AuthPort {
     },
 
     async verifyEmailLink(tokenHash, type) {
-      const { error } = await (
-        await deps.getClient()
-      ).auth.verifyOtp({ token_hash: tokenHash, type });
-      if (error && isInfraError(error)) toPortError(error);
-      return !error;
+      const client = await deps.getClient();
+      const { data, error } = await client.auth.verifyOtp({ token_hash: tokenHash, type });
+      if (error) {
+        if (isInfraError(error)) toPortError(error);
+        return { ok: false };
+      }
+      const { user } = data;
+      if (type !== "email" || !user || user.app_metadata[RESIGNUP_FLAG] !== true) {
+        return { ok: true, mustSetPassword: false };
+      }
+      // Signed up again while pending: nobody's password is trusted. Replace it with a random one
+      // from this session (GoTrue then ends every OTHER session; the admin API would end this one
+      // too), clear the flag, and let the user choose a password here.
+      const upd = await client.auth.updateUser({ password: randomBytes(32).toString("base64url") });
+      if (upd.error) toPortError(upd.error);
+      const out = await client.auth.signOut({ scope: "others" });
+      if (out.error) toPortError(out.error);
+      const flag = await deps.getAdminClient().auth.admin.updateUserById(user.id, {
+        app_metadata: { [RESIGNUP_FLAG]: null },
+      });
+      if (flag.error) toPortError(flag.error);
+      return { ok: true, mustSetPassword: true };
     },
 
     async resendConfirmation(email, next) {
