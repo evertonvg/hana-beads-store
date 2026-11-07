@@ -24,7 +24,7 @@ parallel safe
 strict
 set search_path = ''
 as $$
-  select replace(replace(replace($1, '\', '\'), '%', '\%'), '_', '\_')
+  select replace(replace(replace($1, '\', '\\'), '%', '\%'), '_', '\_')
 $$;
 
 create or replace function public.set_updated_at()

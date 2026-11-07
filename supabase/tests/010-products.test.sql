@@ -1,5 +1,5 @@
 begin;
-select plan(19);
+select plan(20);
 
 select has_table('public', 'products', 'products table exists');
 
@@ -55,6 +55,9 @@ select is(
 select is(
   (select count(*) from public.search_products(null, 'a_b', null, false, 'destaque', 1, 12)),
   0::bigint, 'underscore is escaped, no rows');
+select is(
+  (select count(*) from public.search_products(null, '\o', null, false, 'destaque', 1, 12)),
+  0::bigint, 'backslash is escaped, no rows');
 -- Ordering: priced products first (ascending), null prices last.
 reset role;
 update public.products set price_cents = 5000 where slug = 'garota-pixel';
