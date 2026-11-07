@@ -1,5 +1,5 @@
 begin;
-select plan(29);
+select plan(31);
 
 select has_table('public', 'favorites', 'favorites exists');
 select has_table('public', 'stock_alerts', 'stock_alerts exists');
@@ -53,6 +53,8 @@ select throws_ok(
   format($f$update public.saved_carts set data = %L$f$,
     jsonb_build_object('lines', (select jsonb_agg(jsonb_build_object('productId', 'p', 'ring', 'r', 'qty', 1)) from generate_series(1, 51)))::text),
   '23514', null, 'saved cart rejects 51 lines');
+select throws_ok($$insert into public.saved_carts (user_id, data) values (tests.get_supabase_uid('fa'), '{"junk":1}')$$, '23514', null, 'saved cart without lines key rejected');
+select throws_ok(format($f$update public.saved_carts set data = %L$f$, jsonb_build_object('lines', '[]'::jsonb, 'pad', repeat('x', 70000))::text), '23514', null, 'saved cart over 64 KB rejected');
 select tests.clear_authentication();
 
 -- Privileges

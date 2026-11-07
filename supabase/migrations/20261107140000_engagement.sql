@@ -45,7 +45,9 @@ revoke all on public.newsletter_subscriptions from anon, authenticated;
 create table public.saved_carts (
   user_id uuid primary key references auth.users (id) on delete cascade,
   data jsonb not null check (
-    jsonb_typeof(data -> 'lines') = 'array' and jsonb_array_length(data -> 'lines') <= 50
+    coalesce(jsonb_typeof(data -> 'lines') = 'array', false)
+    and jsonb_array_length(data -> 'lines') <= 50
+    and octet_length(data::text) <= 65536
   ),
   updated_at timestamptz not null default now()
 );
