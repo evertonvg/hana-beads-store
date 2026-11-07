@@ -128,7 +128,7 @@ test("a gaveta lista todas as linhas do carrinho com o subtotal", async ({ page 
   await expect(dialog.getByText("[VALOR]").last()).toBeVisible();
 });
 
-test("linha de outro produto mostra nome real e preço [VALOR] enquanto o preço é placeholder", async ({
+test("linha de outro produto mostra nome real e preço [PREÇO] enquanto o preço é placeholder", async ({
   page,
 }) => {
   await page.addInitScript(() =>
@@ -146,7 +146,7 @@ test("linha de outro produto mostra nome real e preço [VALOR] enquanto o preço
   const items = dialog.getByRole("listitem");
   await expect(items).toHaveCount(2);
   await expect(items.nth(0)).toContainText("ESTRELA Nº");
-  await expect(items.nth(0)).toContainText("[VALOR]");
+  await expect(items.nth(0)).toContainText("R$ [PREÇO]");
   await expect(dialog.getByText("SUBTOTAL · 2 ITENS")).toBeVisible();
 });
 

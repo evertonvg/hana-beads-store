@@ -263,3 +263,22 @@ test("o checkout também avisa quando os preços não carregam", async ({ page }
   await page.getByRole("button", { name: "TENTAR DE NOVO" }).click();
   await expect(page.getByText("PAGAMENTO", { exact: true })).toBeVisible();
 });
+
+test("a gaveta ITEM COLETADO! avisa quando os preços não carregam (sem subtotal nem finalizar)", async ({
+  page,
+}) => {
+  await seedCart(page, [{ productId: "er", ring: "estrela", qty: 1 }]);
+  await gotoHydrated(page, "/produto/garota-pixel");
+  const server = await breakServerActions(page);
+  await page.getByRole("button", { name: "+ PEGAR ITEM" }).click();
+  const dialog = page.getByRole("dialog", { name: "ITEM COLETADO!" });
+  await expect(
+    dialog.getByRole("alert").filter({ hasText: "Não foi possível carregar os preços." }),
+  ).toBeVisible();
+  await expect(dialog.getByRole("link", { name: /FINALIZAR COMPRA/ })).toHaveCount(0);
+  await expect(dialog.getByText("R$ [VALOR]")).toHaveCount(0);
+
+  server.heal();
+  await dialog.getByRole("button", { name: "TENTAR DE NOVO" }).click();
+  await expect(dialog.getByRole("link", { name: /FINALIZAR COMPRA/ })).toBeVisible();
+});

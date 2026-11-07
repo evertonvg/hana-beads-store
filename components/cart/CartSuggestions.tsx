@@ -60,7 +60,9 @@ export async function CartSuggestions() {
               </span>
               <span className="flex justify-between gap-3 p-4 font-pixel text-[10px] leading-relaxed">
                 <span>{product.name}</span>
-                <span className="text-yellow">{priceLabel(product.priceCents)}</span>
+                <span className="shrink-0 whitespace-nowrap text-yellow">
+                  {priceLabel(product.priceCents)}
+                </span>
               </span>
             </Link>
           </li>

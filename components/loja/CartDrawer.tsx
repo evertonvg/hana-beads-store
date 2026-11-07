@@ -8,13 +8,14 @@ import { FreeShippingBar } from "@/components/cart/FreeShippingBar";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Drawer } from "@/components/ui/Drawer";
 import { Button, buttonVariants } from "@/components/ui/Button";
+import { PricesError } from "@/components/cart/PricesError";
 import { useCartPrices } from "@/components/cart/use-cart-prices";
 import { useCartStore } from "@/lib/cart/store";
 import { unitCents } from "@/lib/cart/price";
 import { computeTotals, type PricedLine } from "@/lib/cart/totals";
 import { lineKey } from "@/lib/cart/types";
 import type { Product, RingOption } from "@/lib/data/types";
-import { totalLabel } from "@/lib/format";
+import { priceLabel, totalLabel } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { RING_NAME } from "./ring";
@@ -88,7 +89,7 @@ export function CartDrawer({ open, onClose, lastAdded }: Props) {
   const addedKey = lineKey({ productId: product.id, ring });
 
   // The product of this page is known at once; the others come from the shared cart price query.
-  const { priced } = useCartPrices();
+  const { priced, error, retry } = useCartPrices();
   const rows = lines.map((l) => {
     const other = priced.find((p) => lineKey(p) === lineKey(l));
     const known = l.productId === product.id ? product : (other?.product ?? null);
@@ -100,6 +101,8 @@ export function CartDrawer({ open, onClose, lastAdded }: Props) {
     r.product ? [{ ...r.line, product: r.product, unitCents: r.unit, lineCents: r.lineCents }] : [],
   );
   const subtotal = allKnown ? computeTotals(pricedLines, 0, 0).subtotalCents : null;
+  // Pricing failed for another line: say so instead of "…" forever, and do not offer checkout.
+  const pricesFailed = error && !allKnown;
 
   const body = (
     <div className={cn("flex min-h-full flex-col gap-4", !armed && "pointer-events-none")}>
@@ -123,31 +126,41 @@ export function CartDrawer({ open, onClose, lastAdded }: Props) {
                   Argola: {RING_NAME[line.ring]} · <span>×{line.qty}</span>
                 </span>
               </div>
-              <span className="font-pixel text-[9px] text-yellow">{totalLabel(lineCents)}</span>
+              <span className="shrink-0 font-pixel text-[9px] whitespace-nowrap text-yellow">
+                {priceLabel(lineCents)}
+              </span>
             </li>
           );
         })}
       </ul>
-      <FreeShippingBar subtotalCents={subtotal} />
+      {pricesFailed ? (
+        <PricesError onRetry={retry} />
+      ) : (
+        <FreeShippingBar subtotalCents={subtotal} />
+      )}
       <div className="mt-auto flex flex-col gap-3 pt-2">
-        <div className="flex items-center justify-between gap-3">
-          <span className="font-pixel text-[9px] md:text-[10px]">
-            SUBTOTAL · {itemCount} {itemCount === 1 ? "ITEM" : "ITENS"}
-          </span>
-          <span className="font-pixel text-[11px] text-yellow md:text-xs">
-            {totalLabel(subtotal)}
-          </span>
-        </div>
-        <Link
-          href="/checkout"
-          className={cn(
-            buttonVariants({ variant: "primary" }),
-            actionClass,
-            "shadow-[4px_4px_0_var(--color-yellow)]",
-          )}
-        >
-          FINALIZAR COMPRA ›
-        </Link>
+        {!pricesFailed && (
+          <>
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-pixel text-[9px] md:text-[10px]">
+                SUBTOTAL · {itemCount} {itemCount === 1 ? "ITEM" : "ITENS"}
+              </span>
+              <span className="font-pixel text-[11px] text-yellow md:text-xs">
+                {totalLabel(subtotal)}
+              </span>
+            </div>
+            <Link
+              href="/checkout"
+              className={cn(
+                buttonVariants({ variant: "primary" }),
+                actionClass,
+                "shadow-[4px_4px_0_var(--color-yellow)]",
+              )}
+            >
+              FINALIZAR COMPRA ›
+            </Link>
+          </>
+        )}
         <div className="grid grid-cols-2 gap-2.5 md:grid-cols-1 md:gap-3">
           <Button href="/carrinho" variant="secondary" className="px-1.5 text-[9px] md:text-[10px]">
             VER CARRINHO

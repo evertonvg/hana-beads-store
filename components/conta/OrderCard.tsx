@@ -214,7 +214,7 @@ export function OrderCard({ order, productSlugs, defaultOpen = false }: Props) {
               <span>
                 {item.name} ×{item.qty}
               </span>
-              <span className="text-text-muted">
+              <span className="shrink-0 whitespace-nowrap text-text-muted">
                 {priceLabel(item.unitPriceCents === null ? null : item.unitPriceCents * item.qty)}
               </span>
             </div>

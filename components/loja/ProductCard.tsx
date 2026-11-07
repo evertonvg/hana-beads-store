@@ -58,7 +58,7 @@ export function ProductCard({ product, favorite, loggedIn }: Props) {
   const rarity = product.rarity ? RARITY_LABEL[product.rarity] : null;
   const href = `/produto/${product.slug}`;
   const price = (
-    <span className="font-pixel text-[9px] text-yellow md:text-[11px]">
+    <span className="shrink-0 font-pixel text-[9px] whitespace-nowrap text-yellow md:text-[11px]">
       {priceLabel(product.priceCents)}
     </span>
   );

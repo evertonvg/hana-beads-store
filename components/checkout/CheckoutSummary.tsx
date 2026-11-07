@@ -61,7 +61,7 @@ function Items({
           <span className="min-w-0 flex-1 break-words">
             {line.product.name} ×{line.qty}
           </span>
-          <span>{priceLabel(line.lineCents)}</span>
+          <span className="shrink-0 whitespace-nowrap">{priceLabel(line.lineCents)}</span>
         </li>
       ))}
     </ul>
