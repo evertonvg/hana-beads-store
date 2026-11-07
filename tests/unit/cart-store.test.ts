@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCartStore } from "@/lib/cart/store";
+import { MAX_CART_LINES } from "@/lib/cart/types";
 
 const a = { productId: "a", ring: "mosquetao" as const, qty: 1 };
 const b = { productId: "b", ring: "estrela" as const, qty: 2 };
@@ -18,6 +19,19 @@ describe("cart store", () => {
     expect(useCartStore.getState().lines).toEqual([{ ...a, qty: 3 }]);
     useCartStore.getState().add({ ...a, qty: 500 });
     expect(useCartStore.getState().lines[0]?.qty).toBe(99);
+  });
+
+  it("ignores a new line once the cart has MAX_CART_LINES lines, but still sums existing ones", () => {
+    const full = Array.from({ length: MAX_CART_LINES }, (_, i) => ({
+      productId: `p${i}`,
+      ring: "mosquetao" as const,
+      qty: 1,
+    }));
+    useCartStore.getState().replace({ lines: full });
+    useCartStore.getState().add({ productId: "extra", ring: "mosquetao", qty: 1 });
+    expect(useCartStore.getState().lines).toHaveLength(MAX_CART_LINES);
+    useCartStore.getState().add({ productId: "p0", ring: "mosquetao", qty: 1 });
+    expect(useCartStore.getState().lines[0]?.qty).toBe(2);
   });
 
   it("counts the sum of quantities", () => {

@@ -20,6 +20,7 @@ import { lookupCepAction, placeOrderAction } from "@/app/(checkout)/checkout/act
 import { getData } from "@/lib/data";
 import { getMockStore } from "@/lib/data/mock/store";
 import { placedOrders } from "./placed-orders";
+import { MAX_CART_LINES } from "@/lib/cart/types";
 
 const base = {
   name: "Nova Pessoa",
@@ -85,6 +86,13 @@ describe("placeOrderAction", () => {
     expect((await placeOrderAction({ ...base, lines: [] })).status).toBe("error");
     const r = await placeOrderAction({ ...base, shippingId: "gratis" });
     expect(r.fieldErrors?.shippingId).toBeDefined();
+    expect(placedOrders()).toHaveLength(0);
+  });
+
+  it("refuses a cart with more lines than a client can send instead of cutting it", async () => {
+    const lines = Array.from({ length: MAX_CART_LINES + 1 }, () => base.lines[0]);
+    const r = await placeOrderAction({ ...base, lines });
+    expect(r.status).toBe("error");
     expect(placedOrders()).toHaveLength(0);
   });
 

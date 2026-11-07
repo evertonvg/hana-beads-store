@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mergeCarts, sanitizeCart } from "@/lib/cart/merge";
+import { MAX_CART_LINES } from "@/lib/cart/types";
 
 describe("sanitizeCart", () => {
   it("returns an empty cart for invalid shapes", () => {
@@ -63,5 +64,28 @@ describe("sanitizeCart numeric edge cases", () => {
       ],
     });
     expect(out.lines.map((l) => l.qty)).toEqual([1, 1]);
+  });
+});
+
+describe("cart line cap", () => {
+  const many = (n: number, prefix: string) =>
+    Array.from({ length: n }, (_, i) => ({
+      productId: `${prefix}${i}`,
+      ring: "mosquetao" as const,
+      qty: 1,
+    }));
+
+  it("sanitizeCart keeps the first MAX_CART_LINES lines instead of emptying the cart", () => {
+    const out = sanitizeCart({ lines: many(MAX_CART_LINES + 1, "p") });
+    expect(out.lines).toHaveLength(MAX_CART_LINES);
+    expect(out.lines[0]?.productId).toBe("p0");
+  });
+
+  it("mergeCarts never goes over MAX_CART_LINES and keeps saved lines first", () => {
+    const saved = { lines: many(30, "s") };
+    const guest = { lines: many(30, "g") };
+    const out = mergeCarts(guest, saved);
+    expect(out.lines).toHaveLength(MAX_CART_LINES);
+    expect(out.lines.slice(0, 30).every((l) => l.productId.startsWith("s"))).toBe(true);
   });
 });

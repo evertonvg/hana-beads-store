@@ -5,7 +5,7 @@ import {
   quoteShippingAction,
   validateCouponAction,
 } from "@/app/(loja)/carrinho/actions";
-import { sanitizeCart } from "@/lib/cart/merge";
+import { hasTooManyLines, sanitizeCart } from "@/lib/cart/merge";
 import { computeTotals } from "@/lib/cart/totals";
 import { getData } from "@/lib/data";
 import type { Address } from "@/lib/data/types";
@@ -55,7 +55,9 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
   }
   const v = parsed.data;
   try {
-    const lines = sanitizeCart({ lines: linesOf(input) }).lines;
+    const raw = linesOf(input);
+    if (hasTooManyLines(raw)) return fail("Revise o carrinho.");
+    const lines = sanitizeCart({ lines: raw }).lines;
     if (lines.length === 0) return fail("Seu carrinho está vazio.");
     const { lines: priced, unknownIds } = await priceCartAction(lines);
     if (unknownIds.length > 0 || priced.length === 0) {

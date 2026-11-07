@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { sanitizeCart } from "./merge";
-import { clampQty, lineKey, type CartData, type CartLine } from "./types";
+import { clampQty, lineKey, MAX_CART_LINES, type CartData, type CartLine } from "./types";
 
 export type CartStore = CartData & {
   /** User id the lines were last synced with; null = guest cart. */
@@ -83,6 +83,7 @@ export const useCartStore = create<CartStore>()(
         set((s) => {
           const key = lineKey(line);
           const exists = s.lines.some((l) => lineKey(l) === key);
+          if (!exists && s.lines.length >= MAX_CART_LINES) return {}; // cap: see MAX_CART_LINES
           return {
             lines: exists
               ? s.lines.map((l) =>

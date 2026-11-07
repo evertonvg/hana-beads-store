@@ -1,6 +1,6 @@
 "use server";
 
-import { sanitizeCart } from "@/lib/cart/merge";
+import { hasTooManyLines, sanitizeCart } from "@/lib/cart/merge";
 import { priceLine } from "@/lib/cart/price";
 import { computeTotals, type PricedLine } from "@/lib/cart/totals";
 import { clampQty, MAX_CART_LINES, type CartLine } from "@/lib/cart/types";
@@ -18,6 +18,7 @@ export type PricedCart = { lines: PricedLine[]; unknownIds: string[] };
  * anything malformed is dropped by `sanitizeCart`.
  */
 async function priceCart(lines: unknown): Promise<PricedCart> {
+  if (hasTooManyLines(lines)) return { lines: [], unknownIds: [] };
   const clean = sanitizeCart({ lines }).lines;
   const ids = [...new Set(clean.map((l) => l.productId))];
   const products = await getData().catalog.byIds(ids);
