@@ -18,3 +18,16 @@ export function uuidv5(name: string, namespace: string = FIXTURE_NAMESPACE): str
 export function fixtureId(slug: string): string {
   return uuidv5(slug);
 }
+
+/** Maps a fixture slug to the product id a given adapter uses. */
+export type FixtureIds = {
+  id(slug: string): string;
+  /** A well-formed id that matches no product. */
+  unknown: string;
+};
+
+/** Supabase adapter: UUID v5 of the slug, as in the seed. */
+export const supabaseIds: FixtureIds = {
+  id: fixtureId,
+  unknown: "00000000-0000-4000-8000-000000000000",
+};
