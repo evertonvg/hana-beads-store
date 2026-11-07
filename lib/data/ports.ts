@@ -91,17 +91,38 @@ export type SignUpInput = {
 
 export type AuthProvider = "google" | "facebook" | "apple";
 
+export type SignUpResult = { status: "confirmacao_pendente"; userId: string | null };
+/** null = wrong e-mail or password (the caller must not tell which). */
+export type SignInResult = AuthUser | null | { error: "email_nao_confirmado" };
+export type EmailLinkType = "email" | "recovery";
+
+/** Accounts and the session. The adapter owns the session cookies; callers never see them. */
 export interface AuthPort {
-  /** null = wrong e-mail or password (the caller must not tell which). */
-  signIn(email: string, password: string): Promise<AuthUser | null>;
-  signUp(i: SignUpInput): Promise<AuthUser | { error: "email_em_uso" }>;
-  signInWithProvider(p: AuthProvider): Promise<AuthUser>;
+  /** Creates the session on success; `remember` keeps it for 30 days (else a browser session). */
+  signIn(email: string, password: string, remember: boolean): Promise<SignInResult>;
+  /** userId null = the e-mail already had an account (nothing else changes for the caller). */
+  signUp(i: SignUpInput, next: string): Promise<SignUpResult>;
+  signInWithProvider(p: AuthProvider, next: string): Promise<{ url: string }>;
+  /** true = session created. */
+  completeOAuth(code: string): Promise<boolean>;
+  /** true = link valid; for "email" signs the user in, for "recovery" opens a recovery session. */
+  verifyEmailLink(tokenHash: string, type: EmailLinkType): Promise<boolean>;
+  /** Resolves the same way whether or not the e-mail has a pending account. */
+  resendConfirmation(email: string, next: string): Promise<void>;
   /** Resolves the same way whether or not the e-mail has an account. */
   requestPasswordReset(email: string): Promise<void>;
-  /** Turns a session cookie into a user; null if the account is gone. */
-  userById(id: string): Promise<AuthUser | null>;
+  /** Needs the recovery (or a normal) session; signs every other session out. */
+  updatePassword(next: string): Promise<{ ok: boolean }>;
+  signOut(): Promise<void>;
+  /** The signed-in user; null without a session or when the account is gone. */
+  currentUser(): Promise<AuthUser | null>;
   savedCart(userId: string): Promise<CartData | null>;
   saveCart(userId: string, cart: CartData): Promise<void>;
+}
+
+export interface RateLimitPort {
+  /** Counts one attempt for `key` in a fixed window; false = over `max` (the caller must refuse). */
+  hit(key: string, max: number, windowSeconds: number): Promise<boolean>;
 }
 
 export type Profile = {
@@ -264,5 +285,6 @@ export type Ports = {
   orders: OrdersPort;
   payments: PaymentsPort;
   returns: ReturnsPort;
+  rateLimit: RateLimitPort;
   // other ports are added by the tasks that use them
 };

@@ -2,61 +2,63 @@ import { sealData } from "iron-session";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const SECRET = "unit-secret-unit-secret-unit-secret-00";
-const DAY = 24 * 60 * 60;
 
-const { jar, setOptions, userById } = vi.hoisted(() => ({
-  jar: new Map<string, string>(),
-  setOptions: [] as Record<string, unknown>[],
-  userById: vi.fn(),
-}));
+const { currentUser } = vi.hoisted(() => ({ currentUser: vi.fn() }));
 
-vi.mock("next/headers", () => ({
-  cookies: () =>
-    Promise.resolve({
-      get: (name: string) => (jar.has(name) ? { name, value: jar.get(name) as string } : undefined),
-      getAll: () => [...jar].map(([name, value]) => ({ name, value })),
-      set: (name: string, value: string, options: Record<string, unknown>) => {
-        setOptions.push(options);
-        if (value === "" || options.maxAge === 0) jar.delete(name);
-        else jar.set(name, value);
-      },
-    }),
-}));
 vi.mock("next/server", () => ({ connection: () => Promise.resolve() }));
-vi.mock("@/lib/data", () => ({ getData: () => ({ auth: { userById } }) }));
+vi.mock("@/lib/data", () => ({ getData: () => ({ auth: { currentUser } }) }));
 
-import { createSession, destroySession, getSession } from "@/lib/session";
+import {
+  clearSession,
+  readSession,
+  userIdFromSeal,
+  writeSession,
+} from "@/lib/data/mock/session-cookie";
+import { getSession } from "@/lib/session";
+import { memoryCookies } from "./memory-cookies";
 
 const ana = { id: "ana", name: "Ana", email: "ana@teste.dev" };
 const seal = (data: object) => sealData(data, { password: SECRET });
 const inOneHour = () => Date.now() + 60 * 60 * 1000;
 
-beforeEach(() => {
-  jar.clear();
-  setOptions.length = 0;
-  userById.mockReset();
-  userById.mockImplementation((id: string) => Promise.resolve(id === "ana" ? ana : null));
-});
-
 afterEach(() => vi.unstubAllEnvs());
 
 describe("getSession", () => {
-  it("is null without a cookie", async () => {
-    expect(await getSession()).toBeNull();
+  beforeEach(() => currentUser.mockReset());
+
+  it("returns the adapter's current user", async () => {
+    currentUser.mockResolvedValue(ana);
+    expect(await getSession()).toEqual(ana);
   });
 
-  it("opens a valid seal and returns the user", async () => {
-    jar.set("pp_session", await seal({ userId: "ana", expiresAt: inOneHour() }));
-    expect(await getSession()).toEqual(ana);
+  it("is null when the adapter has no session", async () => {
+    currentUser.mockResolvedValue(null);
+    expect(await getSession()).toBeNull();
+  });
+});
+
+describe("mock session cookie", () => {
+  it("is null without a cookie", async () => {
+    expect(await readSession(memoryCookies())).toBeNull();
+  });
+
+  it("reads back what it wrote, then clear removes it", async () => {
+    const cookies = memoryCookies();
+    await writeSession(cookies, "ana", false);
+    expect(await readSession(cookies)).toBe("ana");
+    expect(await userIdFromSeal(cookies.get("pp_session")?.value)).toBe("ana");
+    await clearSession(cookies);
+    expect(await readSession(cookies)).toBeNull();
   });
 
   it("is null when one character of the seal changed", async () => {
     const value = await seal({ userId: "ana", expiresAt: inOneHour() });
     const i = Math.floor(value.indexOf("~") / 2);
     const tampered = `${value.slice(0, i)}${value[i] === "A" ? "B" : "A"}${value.slice(i + 1)}`;
-    jar.set("pp_session", tampered);
-    expect(await getSession()).toBeNull();
-    expect(userById).not.toHaveBeenCalled();
+    expect(await userIdFromSeal(tampered)).toBeNull();
+    const cookies = memoryCookies();
+    cookies.jar.set("pp_session", tampered);
+    expect(await readSession(cookies)).toBeNull();
   });
 
   it("is null when the seal was made with another secret", async () => {
@@ -64,48 +66,25 @@ describe("getSession", () => {
       { userId: "ana", expiresAt: inOneHour() },
       { password: "another-secret-another-secret-00000" },
     );
-    jar.set("pp_session", other);
-    expect(await getSession()).toBeNull();
+    expect(await userIdFromSeal(other)).toBeNull();
   });
 
-  it("is null when expiresAt is in the past", async () => {
-    jar.set("pp_session", await seal({ userId: "ana", expiresAt: Date.now() - 1000 }));
-    expect(await getSession()).toBeNull();
-  });
-
-  it("is null when expiresAt is missing or the user no longer exists", async () => {
-    jar.set("pp_session", await seal({ userId: "ana" }));
-    expect(await getSession()).toBeNull();
-    jar.set("pp_session", await seal({ userId: "ghost", expiresAt: inOneHour() }));
-    expect(await getSession()).toBeNull();
-  });
-});
-
-describe("createSession / destroySession", () => {
-  it("writes a cookie that getSession reads back, then destroy clears it", async () => {
-    await createSession("ana", false);
-    expect(await getSession()).toEqual(ana);
-    await destroySession();
-    expect(await getSession()).toBeNull();
-  });
-
-  it("without remember: session cookie (no max-age), httpOnly, lax", async () => {
-    await createSession("ana", false);
-    const options = setOptions[0];
-    expect(options).toMatchObject({ httpOnly: true, sameSite: "lax", secure: false, path: "/" });
-    expect(options.maxAge).toBeUndefined();
-  });
-
-  it("with remember: lasts about 30 days", async () => {
-    await createSession("ana", true);
-    const maxAge = setOptions[0].maxAge as number;
-    expect(maxAge).toBeGreaterThan(29 * DAY);
-    expect(maxAge).toBeLessThanOrEqual(30 * DAY);
+  it("is null when expiresAt is in the past or missing", async () => {
+    expect(
+      await userIdFromSeal(await seal({ userId: "ana", expiresAt: Date.now() - 1000 })),
+    ).toBeNull();
+    expect(await userIdFromSeal(await seal({ userId: "ana" }))).toBeNull();
   });
 
   it("is secure in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
-    await createSession("ana", false);
-    expect(setOptions[0]).toMatchObject({ secure: true });
+    const options: Record<string, unknown>[] = [];
+    const cookies = memoryCookies();
+    await writeSession(
+      { ...cookies, set: (n, v, o) => void (options.push(o), cookies.set(n, v, o)) },
+      "ana",
+      false,
+    );
+    expect(options[0]).toMatchObject({ secure: true, httpOnly: true, path: "/" });
   });
 });

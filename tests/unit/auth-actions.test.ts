@@ -1,13 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createSession, getSession, destroySession } = vi.hoisted(() => ({
-  createSession: vi.fn(),
-  getSession: vi.fn(),
-  destroySession: vi.fn(),
-}));
+const { getSession, cookies } = vi.hoisted(() => {
+  const jar = new Map<string, string>();
+  return {
+    getSession: vi.fn(),
+    cookies: {
+      jar,
+      get: (name: string) => (jar.has(name) ? { name, value: jar.get(name) as string } : undefined),
+      getAll: () => [...jar].map(([name, value]) => ({ name, value })),
+      set: (name: string, value: string, options: { maxAge?: number }) => {
+        if (value === "" || options.maxAge === 0) jar.delete(name);
+        else jar.set(name, value);
+      },
+    },
+  };
+});
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/session", () => ({ createSession, getSession, destroySession }));
+vi.mock("@/lib/session", () => ({ getSession }));
+// The mock adapter keeps its session in these cookies.
+vi.mock("next/headers", () => ({ cookies: () => Promise.resolve(cookies) }));
 
 import {
   loginAction,
@@ -40,7 +52,7 @@ const signup = (over: object = {}) => ({
 
 beforeEach(() => {
   getMockStore().reset();
-  createSession.mockReset();
+  cookies.jar.clear();
   getSession.mockReset();
   getSession.mockResolvedValue(null);
 });
@@ -49,7 +61,7 @@ describe("loginAction", () => {
   it("creates the session and returns the safe redirect", async () => {
     const r = await loginAction(login({ remember: true, next: "/loja?x=1" }));
     expect(r).toEqual({ status: "ok", redirectTo: "/loja?x=1" });
-    expect(createSession).toHaveBeenCalledWith("ana", true);
+    expect(cookies.jar.has("pp_session")).toBe(true);
   });
 
   it.each(["//evil.com", "/\\evil.com", "https://evil.com", undefined])(
@@ -66,15 +78,25 @@ describe("loginAction", () => {
     expect(wrong).toEqual({ status: "error", message: "E-mail ou senha incorretos." });
     expect(unknown).toEqual(wrong);
     expect(invalid).toEqual(wrong);
-    expect(createSession).not.toHaveBeenCalled();
+    expect(cookies.jar.size).toBe(0);
+  });
+
+  it("gives the same generic error to an account not confirmed yet", async () => {
+    await signupAction(signup());
+    expect(await loginAction(login({ email: "nova@teste.dev" }))).toEqual({
+      status: "error",
+      message: "E-mail ou senha incorretos.",
+    });
+    expect(cookies.jar.size).toBe(0);
   });
 });
 
 describe("signupAction", () => {
-  it("creates the account, the session and the consents", async () => {
+  it("creates the account pending confirmation, with the consents and no session", async () => {
     const r = await signupAction(signup({ marketingEmail: true }));
     expect(r).toEqual({ status: "ok", redirectTo: "/conta" });
-    expect(createSession).toHaveBeenCalledWith(expect.any(String), false);
+    expect(cookies.jar.size).toBe(0);
+    expect(getMockStore().inbox.map((m) => m.kind)).toEqual(["confirmacao"]);
     expect(getMockStore().consents.map((c) => [c.type, c.version])).toEqual([
       ["terms", "2026-10-28"],
       ["privacy", "2026-10-28"],
@@ -82,14 +104,10 @@ describe("signupAction", () => {
     ]);
   });
 
-  it("reports an e-mail already in use on the email field", async () => {
+  it("answers an e-mail already in use exactly like a new one", async () => {
     const r = await signupAction(signup({ email: "ana@teste.dev" }));
-    expect(r).toEqual({
-      status: "error",
-      message: "Confira os campos.",
-      fieldErrors: { email: "E-mail já cadastrado." },
-    });
-    expect(createSession).not.toHaveBeenCalled();
+    expect(r).toEqual({ status: "ok", redirectTo: "/conta" });
+    expect(cookies.jar.size).toBe(0);
   });
 
   it("revalidates on the server: weak password and unaccepted terms", async () => {
@@ -100,7 +118,7 @@ describe("signupAction", () => {
     expect(mismatch.fieldErrors).toEqual({ confirmPassword: "As senhas não conferem." });
     const terms = await signupAction(signup({ acceptTerms: false }));
     expect(terms.fieldErrors).toHaveProperty("acceptTerms");
-    expect(createSession).not.toHaveBeenCalled();
+    expect(getMockStore().pendingUsers).toEqual([]);
   });
 });
 
@@ -118,15 +136,20 @@ describe("recoverAction", () => {
 });
 
 describe("socialAction", () => {
-  it("signs in as ana for a known provider", async () => {
-    expect(await socialAction("google", "/loja")).toEqual({ status: "ok", redirectTo: "/loja" });
-    expect(createSession).toHaveBeenCalledWith("ana", false);
+  it("returns the provider URL, carrying the safe next", async () => {
+    expect(await socialAction("google", "/loja")).toEqual({
+      status: "ok",
+      redirectTo: "/auth/callback?code=mock-google&next=%2Floja",
+    });
+    expect(await socialAction("facebook", "//evil.com")).toEqual({
+      status: "ok",
+      redirectTo: "/auth/callback?code=mock-facebook&next=%2Fconta",
+    });
   });
 
   it("refuses unknown providers and Apple while it is disabled", async () => {
     expect((await socialAction("github", undefined)).status).toBe("error");
     expect((await socialAction("apple", undefined)).status).toBe("error");
-    expect(createSession).not.toHaveBeenCalled();
   });
 });
 
@@ -189,9 +212,11 @@ describe("saveCartAction", () => {
 });
 
 describe("logoutAction", () => {
-  it("destroys the session", async () => {
+  it("ends the session", async () => {
+    await loginAction(login());
+    expect(cookies.jar.has("pp_session")).toBe(true);
     await logoutAction();
-    expect(destroySession).toHaveBeenCalledOnce();
+    expect(cookies.jar.has("pp_session")).toBe(false);
   });
 });
 

@@ -7,7 +7,7 @@ import type { CartData } from "@/lib/cart/types";
 import { getData } from "@/lib/data";
 import { parseProvider } from "@/lib/auth/providers";
 import { publicEnv } from "@/lib/env";
-import { createSession, destroySession, getSession } from "@/lib/session";
+import { getSession } from "@/lib/session";
 import {
   AUTH_CONSENT_VERSION,
   loginSchema,
@@ -34,9 +34,10 @@ export async function loginAction(input: unknown): Promise<AuthResult> {
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) return { status: "error", message: BAD_CREDENTIALS };
   try {
-    const user = await getData().auth.signIn(parsed.data.email, parsed.data.password);
-    if (!user) return { status: "error", message: BAD_CREDENTIALS };
-    await createSession(user.id, parsed.data.remember);
+    const { email, password, remember } = parsed.data;
+    const user = await getData().auth.signIn(email, password, remember);
+    // An unconfirmed e-mail gets the generic error for now (the resend flow is a later task).
+    if (!user || "error" in user) return { status: "error", message: BAD_CREDENTIALS };
     return { status: "ok", redirectTo: safeNext(nextOf(input)) };
   } catch (error) {
     console.error("loginAction failed", error);
@@ -44,7 +45,7 @@ export async function loginAction(input: unknown): Promise<AuthResult> {
   }
 }
 
-/** Create an account (consents recorded with the version of the text shown) and sign in. */
+/** Create an account pending e-mail confirmation (consents recorded with the version of the text shown). */
 export async function signupAction(input: unknown): Promise<AuthResult> {
   const parsed = signupSchema.safeParse(input);
   if (!parsed.success) {
@@ -56,40 +57,36 @@ export async function signupAction(input: unknown): Promise<AuthResult> {
   }
   try {
     const { name, email, phone, password, marketingEmail } = parsed.data;
-    const result = await getData().auth.signUp({
-      name,
-      email,
-      phone,
-      password,
-      marketingEmail,
-      acceptTerms: true,
-      termsVersion: AUTH_CONSENT_VERSION,
-    });
-    if ("error" in result) {
-      return {
-        status: "error",
-        message: "Confira os campos.",
-        fieldErrors: { email: "E-mail já cadastrado." },
-      };
-    }
-    await createSession(result.id, false);
-    return { status: "ok", redirectTo: safeNext(nextOf(input)) };
+    const next = safeNext(nextOf(input));
+    // Same answer whether or not the e-mail already had an account: no session until confirmed.
+    await getData().auth.signUp(
+      {
+        name,
+        email,
+        phone,
+        password,
+        marketingEmail,
+        acceptTerms: true,
+        termsVersion: AUTH_CONSENT_VERSION,
+      },
+      next,
+    );
+    return { status: "ok", redirectTo: next };
   } catch (error) {
     console.error("signupAction failed", error);
     return { status: "error", message: GENERIC_ERROR };
   }
 }
 
-/** Social sign-in. The mock logs every provider in as the "ana" fixture. */
+/** Social sign-in: returns the provider URL to navigate to (the mock's lands on /auth/callback). */
 export async function socialAction(provider: string, next: unknown): Promise<AuthResult> {
   const allowed = parseProvider(provider, publicEnv.authApple);
   if (!allowed) {
     return { status: "error", message: GENERIC_ERROR };
   }
   try {
-    const user = await getData().auth.signInWithProvider(allowed);
-    await createSession(user.id, false);
-    return { status: "ok", redirectTo: safeNext(next) };
+    const { url } = await getData().auth.signInWithProvider(allowed, safeNext(next));
+    return { status: "ok", redirectTo: url };
   } catch (error) {
     console.error("socialAction failed", error);
     return { status: "error", message: GENERIC_ERROR };
@@ -154,5 +151,5 @@ export async function saveCartAction(lines: unknown): Promise<void> {
 
 /** Sign-out: ends the session. The client also releases its cart (`useCartStore.release`). */
 export async function logoutAction(): Promise<void> {
-  await destroySession();
+  await getData().auth.signOut();
 }

@@ -1,25 +1,85 @@
-import type { AuthPort, AuthUser } from "@/lib/data/ports";
+import { cookies as nextCookies } from "next/headers";
 
-import type { MockUser } from "./fixtures";
+import type { AuthPort, AuthUser, EmailLinkType, SignUpInput } from "@/lib/data/ports";
 import { MARKETING_CONSENT_VERSION } from "@/lib/validation/account";
 
-import { getMockStore } from "./store";
+import type { MockUser } from "./fixtures";
+import { clearSession, readSession, writeSession, type CookieStore } from "./session-cookie";
+import { getMockStore, type MockInboxMessage, type MockStore } from "./store";
 
 const normalize = (email: string) => email.trim().toLowerCase();
 const toUser = ({ id, name, email }: MockUser): AuthUser => ({ id, name, email });
 
-export function createMockAuth(): AuthPort {
+/** Where the recovery link lands (the new-password screen). */
+const RECOVERY_NEXT = "/redefinir-senha";
+const OAUTH_CODE = /^mock-(google|facebook|apple)$/;
+
+export type MockAuthDeps = {
+  /** Request cookies; defaults to `next/headers`. Tests pass an in-memory jar per "browser". */
+  cookies?: () => Promise<CookieStore>;
+};
+
+/** Sends a single-use link (what Supabase Auth would e-mail). */
+function sendLink(store: MockStore, user: MockUser, type: EmailLinkType, next: string) {
+  const token = crypto.randomUUID();
+  store.emailTokens[token] = { userId: user.id, type };
+  const query = new URLSearchParams({ token_hash: token, type, next });
+  const kind: MockInboxMessage["kind"] = type === "email" ? "confirmacao" : "recuperacao";
+  store.inbox.push({ to: user.email, kind, link: `/auth/confirm?${query.toString()}` });
+}
+
+/** Profile data the Supabase trigger saves at sign-up: consents, CPF and the checkout address. */
+function recordSignUpData(store: MockStore, user: MockUser, input: SignUpInput) {
+  if (input.address) {
+    store.addresses[user.id] = [{ ...input.address, id: crypto.randomUUID(), isDefault: true }];
+  }
+  const grantedAt = new Date().toISOString();
+  const grant = (type: "terms" | "privacy" | "email_marketing", version = input.termsVersion) =>
+    store.consents.push({
+      userId: user.id,
+      type,
+      version,
+      granted: true,
+      grantedAt,
+      revokedAt: null,
+    });
+  grant("terms");
+  grant("privacy");
+  if (input.marketingEmail) grant("email_marketing", MARKETING_CONSENT_VERSION);
+}
+
+/**
+ * In-memory auth with e-mail confirmation. The session is an iron-session seal holding the user
+ * id, kept by this adapter in the `pp_session` cookie.
+ */
+export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
+  const cookieStore = deps.cookies ?? nextCookies;
+
   return {
-    signIn(email, password) {
-      const user = getMockStore().users.find((u) => u.email === normalize(email));
-      return Promise.resolve(user && user.password === password ? toUser(user) : null);
+    async signIn(email, password, remember) {
+      const store = getMockStore();
+      const key = normalize(email);
+      const user = store.users.find((u) => u.email === key);
+      if (user && user.password === password) {
+        await writeSession(await cookieStore(), user.id, remember);
+        return toUser(user);
+      }
+      const pending = store.pendingUsers.find((u) => u.email === key);
+      if (pending && pending.password === password) return { error: "email_nao_confirmado" };
+      return null;
     },
 
-    signUp(input) {
+    signUp(input, next) {
       const store = getMockStore();
       const email = normalize(input.email);
       if (store.users.some((u) => u.email === email)) {
-        return Promise.resolve({ error: "email_em_uso" as const });
+        return Promise.resolve({ status: "confirmacao_pendente", userId: null });
+      }
+      const pending = store.pendingUsers.find((u) => u.email === email);
+      if (pending) {
+        // Like Supabase: signing up again before confirming just sends a new link.
+        sendLink(store, pending, "email", next);
+        return Promise.resolve({ status: "confirmacao_pendente", userId: pending.id });
       }
       const user: MockUser = {
         // Never derived from the user count: a deleted user's id must not come back.
@@ -30,43 +90,72 @@ export function createMockAuth(): AuthPort {
         password: input.password,
         ...(input.cpf ? { cpf: input.cpf } : {}),
       };
-      store.users.push(user);
-      if (input.address) {
-        store.addresses[user.id] = [{ ...input.address, id: crypto.randomUUID(), isDefault: true }];
-      }
-      const grantedAt = new Date().toISOString();
-      const termsVersion = input.termsVersion;
-      const grant = (type: "terms" | "privacy" | "email_marketing", version = termsVersion) =>
-        store.consents.push({
-          userId: user.id,
-          type,
-          version,
-          granted: true,
-          grantedAt,
-          revokedAt: null,
-        });
-      grant("terms");
-      grant("privacy");
-      if (input.marketingEmail) grant("email_marketing", MARKETING_CONSENT_VERSION);
-      return Promise.resolve(toUser(user));
+      store.pendingUsers.push(user);
+      recordSignUpData(store, user, input);
+      sendLink(store, user, "email", next);
+      return Promise.resolve({ status: "confirmacao_pendente", userId: user.id });
     },
 
-    signInWithProvider() {
+    signInWithProvider(provider, next) {
+      const query = new URLSearchParams({ code: `mock-${provider}`, next });
+      return Promise.resolve({ url: `/auth/callback?${query.toString()}` });
+    },
+
+    async completeOAuth(code) {
       // The mock has no real OAuth: every provider logs in as the "ana" fixture.
+      if (!OAUTH_CODE.test(code)) return false;
       const ana = getMockStore().users.find((u) => u.id === "ana");
-      return ana ? Promise.resolve(toUser(ana)) : Promise.reject(new Error("fixture ana missing"));
+      if (!ana) return false;
+      await writeSession(await cookieStore(), ana.id, false);
+      return true;
+    },
+
+    async verifyEmailLink(tokenHash, type) {
+      const store = getMockStore();
+      const token = store.emailTokens[tokenHash];
+      if (!token || token.type !== type) return false;
+      delete store.emailTokens[tokenHash];
+      if (type === "email") {
+        const i = store.pendingUsers.findIndex((u) => u.id === token.userId);
+        if (i >= 0) store.users.push(...store.pendingUsers.splice(i, 1));
+      }
+      const user = store.users.find((u) => u.id === token.userId);
+      if (!user) return false;
+      await writeSession(await cookieStore(), user.id, false);
+      return true;
+    },
+
+    resendConfirmation(email, next) {
+      const store = getMockStore();
+      const pending = store.pendingUsers.find((u) => u.email === normalize(email));
+      if (pending) sendLink(store, pending, "email", next);
+      return Promise.resolve();
     },
 
     requestPasswordReset(email) {
       const store = getMockStore();
-      const key = normalize(email);
-      if (store.users.some((u) => u.email === key)) store.passwordResets.push(key);
+      const user = store.users.find((u) => u.email === normalize(email));
+      if (user) sendLink(store, user, "recovery", RECOVERY_NEXT);
       return Promise.resolve();
     },
 
-    userById(id) {
-      const user = getMockStore().users.find((u) => u.id === id);
-      return Promise.resolve(user ? toUser(user) : null);
+    async updatePassword(next) {
+      // The mock seals cannot be revoked, so "sign the other sessions out" is not simulated.
+      const userId = await readSession(await cookieStore());
+      const user = userId ? getMockStore().users.find((u) => u.id === userId) : undefined;
+      if (!user) return { ok: false };
+      user.password = next;
+      return { ok: true };
+    },
+
+    async signOut() {
+      await clearSession(await cookieStore());
+    },
+
+    async currentUser() {
+      const userId = await readSession(await cookieStore());
+      const user = userId ? getMockStore().users.find((u) => u.id === userId) : undefined;
+      return user ? toUser(user) : null;
     },
 
     savedCart(userId) {

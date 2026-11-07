@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createMockAccount } from "@/lib/data/mock/account";
-import { createMockAuth } from "@/lib/data/mock/auth";
 import { createMockEngagement } from "@/lib/data/mock/engagement";
 import { createMockNewsletter } from "@/lib/data/mock/newsletter";
 import { createMockOrders } from "@/lib/data/mock/orders";
 import { createMockReturns } from "@/lib/data/mock/returns";
 import { getMockStore } from "@/lib/data/mock/store";
 import type { Address } from "@/lib/data/types";
+import { mockAuthInJar } from "./memory-cookies";
 
 const home: Address = {
   label: "Trabalho",
@@ -43,10 +43,10 @@ describe("mock account", () => {
   it("changes the password only when the current one is right", async () => {
     const port = createMockAccount();
     expect(await port.changePassword("ana", "errada", "Nova@1234")).toEqual({ ok: false });
-    expect(await createMockAuth().signIn("ana@teste.dev", "Senha@123")).not.toBeNull();
+    expect(await mockAuthInJar().signIn("ana@teste.dev", "Senha@123", false)).not.toBeNull();
     expect(await port.changePassword("ana", "Senha@123", "Nova@1234")).toEqual({ ok: true });
-    expect(await createMockAuth().signIn("ana@teste.dev", "Nova@1234")).not.toBeNull();
-    expect(await createMockAuth().signIn("ana@teste.dev", "Senha@123")).toBeNull();
+    expect(await mockAuthInJar().signIn("ana@teste.dev", "Nova@1234", false)).not.toBeNull();
+    expect(await mockAuthInJar().signIn("ana@teste.dev", "Senha@123", false)).toBeNull();
   });
 
   it("keeps exactly one default address and promotes another when it is removed", async () => {
@@ -131,7 +131,7 @@ describe("mock account", () => {
   it("does not delete anything when the password is wrong", async () => {
     const port = createMockAccount();
     expect(await port.deleteAccount("ana", "errada")).toEqual({ ok: false });
-    expect(await createMockAuth().userById("ana")).not.toBeNull();
+    expect(getMockStore().users.find((u) => u.id === "ana")).toBeDefined();
     expect(await port.addresses("ana")).toHaveLength(1);
   });
 
@@ -156,14 +156,14 @@ describe("mock account", () => {
     const port = createMockAccount();
     await port.setConsent("ana", "email_marketing", true, V);
     expect(await port.deleteAccount("ana", "Senha@123")).toEqual({ ok: true });
-    expect(await createMockAuth().userById("ana")).toBeNull();
-    expect(await createMockAuth().signIn("ana@teste.dev", "Senha@123")).toBeNull();
+    expect(getMockStore().users.find((u) => u.id === "ana")).toBeUndefined();
+    expect(await mockAuthInJar().signIn("ana@teste.dev", "Senha@123", false)).toBeNull();
     expect(await port.addresses("ana")).toEqual([]);
     expect(await port.consents("ana")).toEqual([]);
     const kept = getMockStore().orders.find((o) => o.id === order.id);
     expect(kept?.userId).toBeNull();
     expect(kept?.customer.name).toBe("[removido]");
-    expect(await createMockAuth().userById("bruno")).not.toBeNull();
+    expect(getMockStore().users.find((u) => u.id === "bruno")).toBeDefined();
   });
 
   it("exports returns, stock alerts (by id and by e-mail), newsletter and saved cart", async () => {

@@ -4,8 +4,10 @@ import { createMockCatalog } from "@/lib/data/mock/catalog";
 import { productFixtures } from "@/lib/data/mock/fixtures";
 import { getMockStore } from "@/lib/data/mock/store";
 
+import { describeAuthContract } from "../contract/auth.contract";
 import { describeCatalogContract } from "../contract/catalog.contract";
 import type { FixtureIds } from "../contract/fixture-ids";
+import { mockAuthInJar } from "./memory-cookies";
 
 // The mock uses the fixtures' own string ids.
 const mockIds: FixtureIds = {
@@ -47,6 +49,21 @@ describeCatalogContract(
   },
   mockIds,
 );
+
+describeAuthContract({
+  name: "mock",
+  reset: () => {
+    getMockStore().reset();
+    return Promise.resolve();
+  },
+  readInbox: (email) =>
+    Promise.resolve(
+      getMockStore()
+        .inbox.filter((m) => m.to === email)
+        .map(({ kind, link }) => ({ kind, link })),
+    ),
+  withSession: (fn) => fn(mockAuthInJar()),
+});
 
 describe("fixtures", () => {
   it("has 9 products, all without price, 3 with photos", () => {

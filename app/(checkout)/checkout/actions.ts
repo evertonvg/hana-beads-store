@@ -11,7 +11,7 @@ import { getData } from "@/lib/data";
 import type { Address } from "@/lib/data/types";
 import { isValidCep } from "@/lib/format";
 import { rememberGuestToken } from "@/lib/guest-orders";
-import { createSession, getSession } from "@/lib/session";
+import { getSession } from "@/lib/session";
 import { CHECKOUT_CONSENT_VERSION, checkoutSchema } from "@/lib/validation/checkout";
 import { fieldErrorsFrom, type FormState, GENERIC_ERROR } from "@/lib/validation/form-state";
 
@@ -99,28 +99,25 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
 
     const { auth, orders, payments } = getData();
     const session = await getSession();
-    let userId = session?.id ?? null;
-    let accountCreated = false;
+    const userId = session?.id ?? null;
     if (!userId && v.saveAccount) {
       // Optional "save my data" path. Terms are accepted by the notice next to the button, not
       // by a checkbox (flagged for legal review); marketing e-mail is never opted in here.
-      const created = await auth.signUp({
-        name: v.name,
-        email: v.email,
-        phone: v.phone,
-        password: v.password ?? "",
-        acceptTerms: true,
-        marketingEmail: false,
-        termsVersion: CHECKOUT_CONSENT_VERSION,
-        cpf: v.cpf,
-        address,
-      });
-      if ("error" in created) {
-        return fail("Confira os campos.", { email: "E-mail já cadastrado." });
-      }
-      await createSession(created.id, false);
-      userId = created.id;
-      accountCreated = true;
+      // The account stays pending e-mail confirmation, so the order goes on as a guest order.
+      await auth.signUp(
+        {
+          name: v.name,
+          email: v.email,
+          phone: v.phone,
+          password: v.password ?? "",
+          acceptTerms: true,
+          marketingEmail: false,
+          termsVersion: CHECKOUT_CONSENT_VERSION,
+          cpf: v.cpf,
+          address,
+        },
+        "/conta",
+      );
     }
 
     const order = await orders.create(
@@ -162,7 +159,8 @@ export async function placeOrderAction(input: unknown): Promise<PlaceOrderResult
     return {
       status: "ok",
       redirectTo: `/pedido/${order.id}/${approved ? "confirmado" : "pagamento"}`,
-      accountCreated,
+      // No session until the e-mail is confirmed (the client keeps its guest cart).
+      accountCreated: false,
       ...(userId ? { userId } : {}),
     };
   } catch (error) {

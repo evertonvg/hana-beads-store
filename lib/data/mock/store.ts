@@ -32,13 +32,32 @@ export type MockReturn = {
   photos: { name: string; type: string; size: number }[];
 };
 
+export type MockInboxMessage = {
+  to: string;
+  kind: "confirmacao" | "recuperacao";
+  /** `/auth/confirm?token_hash=<uuid>&type=email|recovery&next=<next>` */
+  link: string;
+};
+
+/** A single-use e-mail link token (deleted once used). */
+export type MockEmailToken = { userId: string; type: "email" | "recovery" };
+
 export type MockStore = {
   products: Product[];
   newsletter: { email: string; consentVersion: string }[];
   /** userId -> favorite product ids, in the order they were added. */
   favorites: Record<string, string[]>;
   stockAlerts: { userId: string | null; email: string; productId: string; consentedAt: string }[];
+  /** Confirmed accounts (the only ones that can sign in). */
   users: MockUser[];
+  /** Accounts created and not confirmed yet; confirming moves them to `users`. */
+  pendingUsers: MockUser[];
+  /** Auth e-mails that would have been sent, oldest first. */
+  inbox: MockInboxMessage[];
+  /** token_hash -> what it confirms. */
+  emailTokens: Record<string, MockEmailToken>;
+  /** Fixed-window attempt counters: key -> window start (ms) and count. */
+  rateLimits: Record<string, { windowStart: number; count: number }>;
   /** Append-only consent history of every user. */
   consents: MockConsent[];
   /** userId -> saved addresses. */
@@ -47,8 +66,6 @@ export type MockStore = {
   connections: Record<string, Connection[]>;
   /** userId -> cart saved on the server (merged with the guest cart at sign-in). */
   savedCarts: Record<string, CartData>;
-  /** E-mails a password-reset link would have been sent to (accounts that exist only). */
-  passwordResets: string[];
   orders: Order[];
   /** idempotency key -> id of the order it created. */
   orderKeys: Record<string, string>;
@@ -68,11 +85,14 @@ function createStore(): MockStore {
     favorites: {},
     stockAlerts: [],
     users: structuredClone([...userFixtures]),
+    pendingUsers: [],
+    inbox: [],
+    emailTokens: {},
+    rateLimits: {},
     consents: [],
     addresses: structuredClone(addressFixtures),
     connections: structuredClone(connectionFixtures),
     savedCarts: structuredClone(savedCartFixtures),
-    passwordResets: [],
     orders: structuredClone([...orderFixtures]),
     orderKeys: {},
     returns: [],
@@ -82,11 +102,14 @@ function createStore(): MockStore {
       store.favorites = {};
       store.stockAlerts = [];
       store.users = structuredClone([...userFixtures]);
+      store.pendingUsers = [];
+      store.inbox = [];
+      store.emailTokens = {};
+      store.rateLimits = {};
       store.consents = [];
       store.addresses = structuredClone(addressFixtures);
       store.connections = structuredClone(connectionFixtures);
       store.savedCarts = structuredClone(savedCartFixtures);
-      store.passwordResets = [];
       store.orders = structuredClone([...orderFixtures]);
       store.orderKeys = {};
       store.returns = [];

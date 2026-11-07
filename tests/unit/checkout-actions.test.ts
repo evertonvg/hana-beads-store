@@ -1,13 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createSession, getSession, jar } = vi.hoisted(() => ({
-  createSession: vi.fn(),
+const { getSession, jar } = vi.hoisted(() => ({
   getSession: vi.fn(),
   jar: new Map<string, string>(),
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/session", () => ({ createSession, getSession }));
+vi.mock("@/lib/session", () => ({ getSession }));
 vi.mock("next/headers", () => ({
   cookies: () =>
     Promise.resolve({
@@ -45,7 +44,6 @@ const base = {
 
 beforeEach(() => {
   getMockStore().reset();
-  createSession.mockReset();
   getSession.mockReset();
   getSession.mockResolvedValue(null);
   jar.clear();
@@ -111,26 +109,25 @@ describe("placeOrderAction", () => {
     expect(jar.has("pp_guest_orders")).toBe(false);
   });
 
-  it("creates the account when asked, signs in and keeps the order", async () => {
+  it("creates the account pending confirmation and places a guest order", async () => {
     const r = await placeOrderAction({ ...base, saveAccount: true, password: "Senha@123" });
-    expect(r).toMatchObject({ status: "ok", accountCreated: true });
-    const user = getMockStore().users.find((u) => u.email === "nova@teste.dev");
-    expect(user).toBeDefined();
-    expect(createSession).toHaveBeenCalledWith(user?.id, false);
-    expect(getMockStore().orders[0]?.userId).toBe(user?.id);
+    expect(r).toMatchObject({ status: "ok", accountCreated: false });
+    expect(getMockStore().pendingUsers.map((u) => u.email)).toEqual(["nova@teste.dev"]);
+    expect(getMockStore().inbox.map((m) => m.kind)).toEqual(["confirmacao"]);
+    expect(placedOrders()[0]).toMatchObject({ userId: null });
+    expect(placedOrders()[0]?.guestToken).toBeTruthy();
   });
 
-  it("answers an e-mail already in use with a field error and no order", async () => {
+  it("places the order the same way when the e-mail already has an account", async () => {
     const r = await placeOrderAction({
       ...base,
       email: "ana@teste.dev",
       saveAccount: true,
       password: "Senha@123",
     });
-    expect(r.status).toBe("error");
-    expect(r.fieldErrors?.email).toBe("E-mail já cadastrado.");
-    expect(placedOrders()).toHaveLength(0);
-    expect(createSession).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ status: "ok", accountCreated: false });
+    expect(placedOrders()).toHaveLength(1);
+    expect(getMockStore().inbox).toEqual([]);
   });
 });
 
@@ -205,9 +202,9 @@ describe("retry after a partial failure", () => {
     const create = vi.spyOn(getData().orders, "create").mockRejectedValueOnce(new Error("boom"));
     const first = await placeOrderAction({ ...base, saveAccount: true, password: "Senha@123" });
     expect(first.status).toBe("error");
-    const user = getMockStore().users.find((u) => u.email === "nova@teste.dev");
+    const user = getMockStore().pendingUsers.find((u) => u.email === "nova@teste.dev");
     expect(user).toBeDefined();
-    // The account and the session exist now: the retry sees a signed-in user.
+    // Signed in by the retry (e.g. after confirming the e-mail): the order goes to that user.
     getSession.mockResolvedValue({ id: user?.id, name: "Nova Pessoa", email: "nova@teste.dev" });
     const retry = await placeOrderAction({ ...base, saveAccount: true, password: "Senha@123" });
     create.mockRestore();
