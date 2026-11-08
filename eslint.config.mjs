@@ -25,7 +25,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["tests/e2e/**"],
+    files: ["tests/e2e/**", "tests/e2e-supabase/**"],
     ...playwright.configs["flat/recommended"],
     rules: {
       ...playwright.configs["flat/recommended"].rules,

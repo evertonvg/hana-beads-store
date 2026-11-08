@@ -17,6 +17,7 @@
     "db:test": "supabase test db",
     "db:types": "supabase gen types typescript --local > lib/supabase/database.types.ts",
     "e2e": "playwright test",
+    "e2e:supabase": "playwright test -c playwright.supabase.config.ts",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm test",
     "prepare": "husky",
     "lint:fix": "eslint . --fix",
