@@ -1,6 +1,6 @@
 # Pixel Perfect Artesanato
 
-Online store frontend (Next.js 16, App Router, Tailwind 4) with a mock data layer.
+Online store frontend (Next.js 16, App Router, Tailwind 4) with a mock data layer and a Supabase backend (`supabase/`) behind the same ports.
 Spec and design references live in `docs/`; project rules in `CLAUDE.md`.
 
 ## Setup
@@ -29,7 +29,46 @@ npx playwright install chromium
 | `npm run build-storybook`         | Static Storybook build (`storybook-static/`)                           |
 | `npm run test:a11y-stories`       | Builds Storybook and runs axe on every story                           |
 
-`SESSION_SECRET` must have 32+ characters. Visual baselines (`VISUAL=1`) run only in Docker.
+`SESSION_SECRET` (only with `DATA_SOURCE=mock`) must have 32+ characters. Visual baselines (`VISUAL=1`) run only in Docker.
+
+## Supabase (backend)
+
+O catálogo e a autenticação rodam no Supabase (Postgres, Auth, RLS). As migrations, o seed, os testes de banco e os templates de e-mail ficam em `supabase/`.
+
+**Subir o ambiente local** (precisa do Docker; se `docker info` não responder, rode `wsl --shutdown` e reinicie o Docker Desktop):
+
+```bash
+npm run db:start                 # supabase start (Postgres, Auth, Studio, Mailpit)
+npx supabase status -o env       # copie API_URL, PUBLISHABLE_KEY e SECRET_KEY para .env.local:
+                                 #   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY
+# em .env.local: DATA_SOURCE=supabase
+npm run dev
+```
+
+Os e-mails de confirmação e de nova senha chegam no Mailpit (http://127.0.0.1:54324). `npm run db:reset` recria o banco com as migrations e o seed; `npm run db:stop` desliga tudo.
+
+**Criar uma migration:** `npx supabase migration new <nome>`, escreva o SQL em `supabase/migrations/`, rode `npm run db:reset` e depois `npm run db:types` (regenera `lib/supabase/database.types.ts`; o CI falha se o arquivo estiver desatualizado). RLS é obrigatório em toda tabela de `public`.
+
+**Testes:**
+
+| Comando                    | O que roda                                                                     |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `npm run db:test`          | pgTAP (`supabase test db`): RLS, triggers, funções                             |
+| `npm run test:integration` | Vitest contra o Supabase local (as chaves vêm de `supabase status`)            |
+| `npm run e2e:supabase`     | Playwright contra o app com `DATA_SOURCE=supabase` (cadastro, login, catálogo) |
+
+O CI (`.github/workflows/ci.yml`) roda `check` e, em job separado, tudo acima (o E2E mock e o Supabase compartilham `.next`).
+
+**Deploy das migrations:** `.github/workflows/deploy-db.yml` roda a cada push na `main` que altere `supabase/**` (ou manualmente) com `supabase link` + `supabase db push`. Secrets: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` e `SUPABASE_PROJECT_REF`. Sem `SUPABASE_PROJECT_REF` o job só emite um aviso (o projeto na nuvem ainda não existe).
+
+**Checklist de produção:**
+
+- `CLIENT_IP_HEADER` deve nomear um cabeçalho que a hospedagem sobrescreve; senão a primeira entrada de `x-forwarded-for` é controlada pelo cliente e burla o limite de tentativas.
+- Nunca publique um build com `DATA_SOURCE=mock`: as rotas `/api/__mock__/*` (inclusive a caixa de e-mails com links vivos de confirmação e recuperação) ficam abertas nesse modo.
+- A lista de redirecionamentos do GoTrue (`additional_redirect_urls`) precisa cobrir `<site>/auth/confirm?next=*` e `<site>/auth/callback*`, senão os links dos e-mails quebram.
+- Crie no Vault os segredos `site_url` e `revalidate_secret` (mesmo valor de `REVALIDATE_SECRET`); sem eles o gatilho de revalidação não faz nada. Ao trocar o segredo, limpe também as linhas de `net.http_request_queue` e `net._http_response`, que guardam o cabeçalho Bearer antigo.
+- Ligue o "IP Address Forwarding" do Supabase Auth (`security_sb_forwarded_for_enabled`; Authentication → Rate Limits ou Management API) depois de criar o projeto.
+- SMTP do Resend (`RESEND_SMTP_HOST`, `RESEND_SMTP_USER`, `RESEND_SMTP_PASS`) com remetente real no lugar de `[PLACEHOLDER]`, e credenciais OAuth do Google e do Facebook (ver `docs/PENDENCIAS.md` §1).
 
 ## Padrões de código
 

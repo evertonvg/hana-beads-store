@@ -6,28 +6,31 @@ Este documento é o ponto de partida do plano de backend.
 
 ## 1. Dados que só o dono pode fornecer
 
-| Item                              | Onde aparece hoje                                                                                        | O que falta                                                      |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Preços dos produtos               | `[PREÇO]` em cards, ficha do produto e carrinho (fixtures com `priceCents: null`)                        | Preço de cada item                                               |
-| Valores e totais                  | `[VALOR]` no resumo do carrinho, checkout e pedidos                                                      | Saem sozinhos quando os preços existirem                         |
-| Prazos de entrega                 | `[X] dias` na cotação de frete e nas páginas de política                                                 | Prazo de produção e prazo por transportadora                     |
-| Frete grátis                      | `[Faltam R$ X para frete grátis]`; `NEXT_PUBLIC_FREE_SHIPPING_CENTS` vazia                               | Valor mínimo (em centavos) ou decisão de não ter                 |
-| CNPJ e razão social               | `[razão social]` e `[00.000.000/0000-00]` no rodapé, privacidade e termos                                | Dados da empresa                                                 |
-| Encarregado de dados (LGPD)       | `[privacidade@seudominio.com.br]` na política de privacidade                                             | Nome e e-mail do encarregado                                     |
-| Usuário do Instagram              | `[usuario]` quando `NEXT_PUBLIC_INSTAGRAM_USER` está vazia                                               | Usuário real (e número do WhatsApp, se o canal mudar)            |
-| Texto "Sobre"                     | A home tem a seção `#sobre` com o placeholder `[texto "Sobre"]`; não existe página própria               | Texto da marca (e decidir se vira página)                        |
-| Fotos extras e medidas            | Produtos ilustrativos usam arte em pixels (`images: []`); medidas são placeholders                       | Fotos reais (galeria) e medidas de cada item                     |
-| Parcelas                          | `[parcelas]` na opção CARTÃO do checkout                                                                 | Regra de parcelamento (número de parcelas, juros)                |
-| Limite de fotos da troca          | `MAX_RETURN_PHOTO_BYTES` = 5 MB por foto, até 4 fotos (`lib/validation/return.ts`)                       | Confirmar com o dono (uma constante)                             |
-| Limite do corpo da Server Action  | `serverActions.bodySizeLimit: "21mb"` em `next.config.ts` (4 x 5 MB mais folga para os campos)           | Mudar junto com o limite de fotos                                |
-| Faixa de preço da loja            | O filtro de faixa de preço está oculto (não há preços)                                                   | Reativar quando existirem preços                                 |
-| Favoritos sem página              | O coração grava o favorito, mas não existe tela "Favoritos" (o item fica oculto no menu de `/conta`)     | Decidir se a página entra (`EngagementPort.favorites` já existe) |
-| Login com Apple                   | Botão atrás de `NEXT_PUBLIC_AUTH_APPLE` (padrão `false`)                                                 | Conta Apple Developer e configuração no Supabase                 |
-| Remetente dos e-mails de login    | `admin_email` e `sender_name` = `[PLACEHOLDER]` em `[auth.email.smtp]` (`supabase/config.toml`)          | Domínio e endereço do remetente; credenciais SMTP do Resend      |
-| Logo                              | O cabeçalho usa a grade de pixels provisória (`LOGO_ROWS`); o conceito está em `docs/design/referencia/` | Arte final da logo                                               |
-| Revisão jurídica                  | Privacidade, Termos e Trocas são rascunhos (`content/legal/*.mdx`, comentários `RASCUNHO`)               | Advogado revisar antes de publicar (ver lista abaixo)            |
-| Meta description de `/encomendas` | Texto escrito pelo implementador, não veio do design                                                     | O dono aprovar ou reescrever                                     |
-| Descrições das fixtures           | Derivadas dos textos alternativos do design (neutras, sem promessa)                                      | Descrição real de cada produto                                   |
+| Item                              | Onde aparece hoje                                                                                          | O que falta                                                                                                             |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Preços dos produtos               | `[PREÇO]` em cards, ficha do produto e carrinho (fixtures com `priceCents: null`)                          | Preço de cada item                                                                                                      |
+| Valores e totais                  | `[VALOR]` no resumo do carrinho, checkout e pedidos                                                        | Saem sozinhos quando os preços existirem                                                                                |
+| Prazos de entrega                 | `[X] dias` na cotação de frete e nas páginas de política                                                   | Prazo de produção e prazo por transportadora                                                                            |
+| Frete grátis                      | `[Faltam R$ X para frete grátis]`; `NEXT_PUBLIC_FREE_SHIPPING_CENTS` vazia                                 | Valor mínimo (em centavos) ou decisão de não ter                                                                        |
+| CNPJ e razão social               | `[razão social]` e `[00.000.000/0000-00]` no rodapé, privacidade e termos                                  | Dados da empresa                                                                                                        |
+| Encarregado de dados (LGPD)       | `[privacidade@seudominio.com.br]` na política de privacidade                                               | Nome e e-mail do encarregado                                                                                            |
+| Usuário do Instagram              | `[usuario]` quando `NEXT_PUBLIC_INSTAGRAM_USER` está vazia                                                 | Usuário real (e número do WhatsApp, se o canal mudar)                                                                   |
+| Texto "Sobre"                     | A home tem a seção `#sobre` com o placeholder `[texto "Sobre"]`; não existe página própria                 | Texto da marca (e decidir se vira página)                                                                               |
+| Fotos extras e medidas            | Produtos ilustrativos usam arte em pixels (`images: []`); medidas são placeholders                         | Fotos reais (galeria) e medidas de cada item                                                                            |
+| Parcelas                          | `[parcelas]` na opção CARTÃO do checkout                                                                   | Regra de parcelamento (número de parcelas, juros)                                                                       |
+| Limite de fotos da troca          | `MAX_RETURN_PHOTO_BYTES` = 5 MB por foto, até 4 fotos (`lib/validation/return.ts`)                         | Confirmar com o dono (uma constante)                                                                                    |
+| Limite do corpo da Server Action  | `serverActions.bodySizeLimit: "21mb"` em `next.config.ts` (4 x 5 MB mais folga para os campos)             | Mudar junto com o limite de fotos                                                                                       |
+| Faixa de preço da loja            | O filtro de faixa de preço está oculto (não há preços)                                                     | Reativar quando existirem preços                                                                                        |
+| Favoritos sem página              | O coração grava o favorito, mas não existe tela "Favoritos" (o item fica oculto no menu de `/conta`)       | Decidir se a página entra (`EngagementPort.favorites` já existe)                                                        |
+| Login com Apple                   | Botão atrás de `NEXT_PUBLIC_AUTH_APPLE` (padrão `false`)                                                   | Conta Apple Developer e configuração no Supabase                                                                        |
+| Remetente dos e-mails de login    | `admin_email` e `sender_name` = `[PLACEHOLDER]` em `[auth.email.smtp]` (`supabase/config.toml`)            | Domínio e endereço do remetente; credenciais SMTP do Resend                                                             |
+| Logo                              | O cabeçalho usa a grade de pixels provisória (`LOGO_ROWS`); o conceito está em `docs/design/referencia/`   | Arte final da logo                                                                                                      |
+| Revisão jurídica                  | Privacidade, Termos e Trocas são rascunhos (`content/legal/*.mdx`, comentários `RASCUNHO`)                 | Advogado revisar antes de publicar (ver lista abaixo)                                                                   |
+| Meta description de `/encomendas` | Texto escrito pelo implementador, não veio do design                                                       | O dono aprovar ou reescrever                                                                                            |
+| Descrições das fixtures           | Derivadas dos textos alternativos do design (neutras, sem promessa)                                        | Descrição real de cada produto                                                                                          |
+| Domínio remetente (Resend)        | `[PLACEHOLDER]` como remetente dos e-mails de auth (`supabase/templates/`, SMTP em `supabase/config.toml`) | Domínio verificado no Resend, remetente e `RESEND_SMTP_*`                                                               |
+| Credenciais OAuth Google/Facebook | Botões sociais; local usa `SUPABASE_AUTH_EXTERNAL_*` vazios                                                | Client ID e secret de cada provedor e o redirect do projeto                                                             |
+| IP Address Forwarding (Supabase)  | Sem ele o limite de tentativas do Auth enxerga o IP do proxy                                               | Ligar depois de criar o projeto: Authentication → Rate Limits, ou `security_sb_forwarded_for_enabled` na Management API |
 
 Pontos que a revisão jurídica precisa cobrir:
 
@@ -68,14 +71,15 @@ Lacunas entre o que a política de privacidade lista e o que o código coleta ho
 - **Prazo de 90 dias para defeito.** Só o prazo de arrependimento (7 dias após a entrega) é verificado. O prazo de 90 dias para vício aparente não é aplicado em lugar nenhum.
 - **Exportação e exclusão de conta (`exportData`, `deleteAccount`).** O mock exporta (tipo `AccountExport`) e apaga perfil, endereços, consentimentos, conexões, favoritos, carrinho salvo, pedidos de troca, avisos de estoque (por usuário e pelo e-mail do perfil) e a inscrição da newsletter (pelo e-mail). Pedidos ficam anonimizados (nome, e-mail, telefone e CPF viram `[removido]`), mas o endereço de entrega e os pedidos de redefinição de senha seguem sem anonimizar. O adaptador real deve cobrir as mesmas coleções nos dois métodos. Definir a retenção (pedidos precisam ser guardados por obrigação fiscal; o resto deve ser apagado ou anonimizado) e refletir na política de privacidade.
 - **E-mail de marketing tem duas fontes de verdade.** O formulário da home grava `store.newsletter` por e-mail, e `/conta` grava consentimentos `email_marketing` por usuário. Decisão do backend: um único registro de consentimento de marketing, por usuário ou por e-mail, com data/hora e versão do texto em cada registro de newsletter, e o interruptor de `/conta` refletindo e revogando a inscrição da newsletter.
-- **Seals do `iron-session` não são revogados.** O cookie é sem estado: sair da conta ou trocar a senha não invalida um seal já emitido (vale até 30 dias). O backend precisa de versão de sessão ou lista de revogação.
-- **`pp_guest_orders` sobrevive ao logout.** Em dispositivo compartilhado, o cookie com os pedidos de convidado continua legível depois de sair. Limpar no logout e/ou expirar mais cedo.
+- ~~**Seals do `iron-session` não são revogados.** O cookie é sem estado: sair da conta ou trocar a senha não invalida um seal já emitido (vale até 30 dias). O backend precisa de versão de sessão ou lista de revogação.~~ **Resolvido:** o Supabase Auth gerencia a sessão (refresh tokens revogáveis); o `iron-session` ficou só no adaptador mock.
+- ~~**`pp_guest_orders` sobrevive ao logout.** Em dispositivo compartilhado, o cookie com os pedidos de convidado continua legível depois de sair. Limpar no logout e/ou expirar mais cedo.~~ **Resolvido:** o cookie é limpo no logout.
 - **Upload de fotos da troca.** `bodySizeLimit: "21mb"` vale para todas as Server Actions. O backend deve usar upload direto assinado (Supabase Storage) e restaurar o limite padrão.
 - **Analytics (Umami).** O script do Umami precisa de `data-website-id`, que `ConsentScripts` não consegue definir (só recebe `NEXT_PUBLIC_ANALYTICS_SRC`). As variáveis `UMAMI_*` do `docker-compose.yml` (`UMAMI_DB_USER`, `UMAMI_DB_PASSWORD`, `UMAMI_APP_SECRET`) também não estão no `.env.example`.
 - **Usuário só com provedor social não consegue excluir a conta.** `deleteAccount` exige a senha, e quem entrou só com Google/Facebook tem senha vazia. Também não consegue definir senha, embora o erro de `disconnect` diga "Crie uma senha". O adaptador real precisa de um caminho (reautenticação pelo provedor ou criação de senha).
-- **Cache das páginas de produto.** Os triggers de `products` chamam `POST /api/revalidate` (pg_net) com os slugs alterados, mas só quando o Vault do projeto tem os segredos `site_url` e `revalidate_secret` (o mesmo valor de `REVALIDATE_SECRET`). Criar os dois em cada ambiente (`select vault.create_secret(...)`); sem eles o catálogo só muda quando o cache expira.
+- ~~**Cache das páginas de produto.** Os triggers de `products` chamam `POST /api/revalidate` (pg_net) com os slugs alterados, mas só quando o Vault do projeto tem os segredos `site_url` e `revalidate_secret` (o mesmo valor de `REVALIDATE_SECRET`). Criar os dois em cada ambiente (`select vault.create_secret(...)`); sem eles o catálogo só muda quando o cache expira.~~ **Resolvido** pelos triggers e por `/api/revalidate`; falta criar os segredos do Vault em cada ambiente (ver o item de operação abaixo).
+- **Operação em produção (Supabase).** (1) `CLIENT_IP_HEADER` deve nomear um cabeçalho que a hospedagem sobrescreve; a primeira entrada de `x-forwarded-for` é controlada pelo cliente. (2) Nunca publicar build com `DATA_SOURCE=mock`: `/api/__mock__/*`, inclusive a caixa de e-mails com links vivos, fica aberto. (3) `additional_redirect_urls` do GoTrue precisa cobrir `<site>/auth/confirm?next=*` e `<site>/auth/callback*`. (4) Vault com `site_url` e `revalidate_secret`; ao trocar o segredo, limpar `net.http_request_queue` e `net._http_response`. (5) Ligar o "IP Address Forwarding" do Auth. O checklist também está no `README.md`.
 - **Cartão.** O servidor nunca recebe número nem CVV, só um token do gateway (`CardInput`). Manter: tokenização no navegador (Mercado Pago).
-- **Limite de tentativas.** O cadastro revela se o e-mail já tem conta e não há rate limit; limitar login, cadastro e recuperação de senha.
+- ~~**Limite de tentativas.** O cadastro revela se o e-mail já tem conta e não há rate limit; limitar login, cadastro e recuperação de senha.~~ **Resolvido:** `RateLimitPort` (5 por 15 min por e-mail, 20 por 15 min por IP) em login, cadastro e recuperação; o cadastro não revela mais se o e-mail existe.
 - **Webhook do Mercado Pago** com assinatura verificada e idempotência (o mock não simula).
 - **Conta criada com o e-mail de outra pessoa (risco residual).** Quem se cadastra sozinho com o e-mail de outra pessoa sabe a senha da conta se essa pessoa clicar no link de confirmação que não pediu. Um segundo cadastro para o mesmo e-mail pendente já faz a confirmação trocar a senha por uma aleatória e pedir uma nova. Mitigações para depois: sempre pedir uma senha nova depois de confirmar o e-mail, ou cadastro sem senha (link mágico).
 
@@ -90,22 +94,22 @@ Lacunas entre o que a política de privacidade lista e o que o código coleta ho
 
 ## 5. Ports a implementar no plano de backend
 
-Todos em `lib/data/ports.ts`; hoje só existe o adaptador mock (`lib/data/mock/`). `getData()` em `lib/data/index.ts` escolhe o adaptador por `DATA_SOURCE` e hoje só aceita `mock`.
+Todos em `lib/data/ports.ts`. `getData()` em `lib/data/index.ts` escolhe o adaptador por `DATA_SOURCE` (`mock` ou `supabase`). Entregues no sub-projeto 1 (backend 1/4): `CatalogPort`, `NewsletterPort`, `EngagementPort`, `AuthPort`, `RateLimitPort` e a ponte de leitura do `AccountPort` (`profile`, `addresses`, `consents`, `connections`; as escritas lançam `NotAvailableYetError` até o sub-projeto 3). Os demais seguem só no mock.
 
-| Port                | Serviço previsto                                         |
-| ------------------- | -------------------------------------------------------- |
-| `CatalogPort`       | Supabase (Postgres, com tags de revalidação)             |
-| `NewsletterPort`    | Supabase + Resend                                        |
-| `EngagementPort`    | Supabase (favoritos e avisos de estoque, com RLS)        |
-| `ShippingPort`      | Melhor Envio                                             |
-| `CouponPort`        | Supabase                                                 |
-| `AuthPort`          | Supabase Auth (e-mail, Google, Facebook, Apple)          |
-| `AccountPort`       | Supabase (perfil, endereços, consentimentos, exportação) |
-| `AddressLookupPort` | ViaCEP                                                   |
-| `OrdersPort`        | Supabase (idempotência por chave, RLS por usuário)       |
-| `PaymentsPort`      | Mercado Pago (Pix, cartão, boleto) + webhook             |
-| `ReturnsPort`       | Supabase Storage (fotos) + Resend                        |
-| analytics           | Umami ou Plausible via `NEXT_PUBLIC_ANALYTICS_SRC`       |
+| Port                | Serviço previsto                                                            |
+| ------------------- | --------------------------------------------------------------------------- |
+| `CatalogPort`       | Supabase (Postgres, com tags de revalidação) **(entregue)**                 |
+| `NewsletterPort`    | Supabase + Resend **(entregue)**                                            |
+| `EngagementPort`    | Supabase (favoritos e avisos de estoque, com RLS) **(entregue)**            |
+| `ShippingPort`      | Melhor Envio                                                                |
+| `CouponPort`        | Supabase                                                                    |
+| `AuthPort`          | Supabase Auth (e-mail, Google, Facebook, Apple) **(entregue)**              |
+| `AccountPort`       | Supabase (perfil, endereços, consentimentos, exportação) (leitura entregue) |
+| `AddressLookupPort` | ViaCEP                                                                      |
+| `OrdersPort`        | Supabase (idempotência por chave, RLS por usuário)                          |
+| `PaymentsPort`      | Mercado Pago (Pix, cartão, boleto) + webhook                                |
+| `ReturnsPort`       | Supabase Storage (fotos) + Resend                                           |
+| analytics           | Umami ou Plausible via `NEXT_PUBLIC_ANALYTICS_SRC`                          |
 
 Assinaturas atuais, copiadas de `lib/data/ports.ts`:
 

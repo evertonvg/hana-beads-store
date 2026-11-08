@@ -17,6 +17,13 @@ As telas de referência estão em **`docs/design/`** (veja "Como ler os arquivos
 - GSAP + ScrollTrigger (parallax da home)
 - Hospedagem: Vercel (plano pago, uso comercial)
 
+## Dados (Supabase)
+
+- `getData()` (`lib/data/index.ts`) escolhe o adaptador por `DATA_SOURCE` (`mock` ou `supabase`); catálogo, newsletter, engajamento, auth e limite de tentativas já têm adaptador Supabase, o resto é mock.
+- Schema, RLS, seed e testes pgTAP em `supabase/`; mudanças de schema só por migration (`npx supabase migration new`), seguidas de `npm run db:types`. RLS ligado em toda tabela de `public`.
+- A secret key (`service_role`) só entra por `lib/supabase/admin.ts` e `lib/supabase/auth-client.ts` (`server-only`). Logs nunca levam token, senha, CPF nem corpo de requisição de auth.
+- Passo a passo e checklist de produção no `README.md` (seção Supabase).
+
 ## Regras de trabalho
 
 - Idioma da interface: **português do Brasil**. Código, nomes de variáveis e commits podem ser em inglês.
