@@ -69,6 +69,12 @@ describeAuthContract({
         .map(({ kind, link }) => ({ kind, link })),
     ),
   withSession: (fn) => fn(mockAuthInJar()),
+  flagAsResignedUp: (userId) => {
+    const user = getMockStore().users.find((u) => u.id === userId);
+    if (!user) throw new Error(`no confirmed user ${userId}`);
+    user.resignup = true;
+    return Promise.resolve();
+  },
 });
 
 const resetMock = () => {

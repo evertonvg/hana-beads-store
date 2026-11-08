@@ -97,9 +97,9 @@ describe("mock auth", () => {
     expect(await auth.signInWithProvider("google", "/loja?x=1")).toEqual({
       url: "/auth/callback?code=mock-google&next=%2Floja%3Fx%3D1",
     });
-    expect(await auth.completeOAuth("outro")).toBe(false);
+    expect(await auth.completeOAuth("outro")).toEqual({ ok: false });
     expect(await auth.currentUser()).toBeNull();
-    expect(await auth.completeOAuth("mock-google")).toBe(true);
+    expect(await auth.completeOAuth("mock-google")).toEqual({ ok: true });
     expect((await auth.currentUser())?.id).toBe("ana");
   });
 

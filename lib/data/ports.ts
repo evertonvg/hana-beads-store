@@ -97,19 +97,25 @@ export type SignInResult = AuthUser | null | { error: "email_nao_confirmado" };
 export type EmailLinkType = "email" | "recovery";
 /**
  * mustSetPassword = the account was signed up again while pending: its password was replaced by a
- * random one at confirmation, so the user must choose one now (the session is already open).
+ * random one when the link (confirmation or recovery) was opened, so the user must choose one now
+ * (the session is already open). retry = the auth server refused for too many attempts (429): the
+ * link was NOT used and can be opened again in a minute.
  */
-export type EmailLinkResult = { ok: false } | { ok: true; mustSetPassword: boolean };
+export type EmailLinkResult = { ok: false; retry?: true } | { ok: true; mustSetPassword: boolean };
+/** ok = session created; retry = too many attempts right now (429), the code was not used. */
+export type OAuthResult = { ok: true } | { ok: false; retry?: true };
 
 /** Accounts and the session. The adapter owns the session cookies; callers never see them. */
 export interface AuthPort {
-  /** Creates the session on success; `remember` keeps it for 30 days (else a browser session). */
+  /**
+   * Creates the session on success; `remember` keeps it for 30 days (else a browser session).
+   * A confirmed account still flagged as re-signed-up (its password is untrusted) gets null.
+   */
   signIn(email: string, password: string, remember: boolean): Promise<SignInResult>;
   /** userId null = the e-mail already had an account (nothing else changes for the caller). */
   signUp(i: SignUpInput, next: string): Promise<SignUpResult>;
   signInWithProvider(p: AuthProvider, next: string): Promise<{ url: string }>;
-  /** true = session created. */
-  completeOAuth(code: string): Promise<boolean>;
+  completeOAuth(code: string): Promise<OAuthResult>;
   /** ok = link valid; for "email" signs the user in, for "recovery" opens a recovery session. */
   verifyEmailLink(tokenHash: string, type: EmailLinkType): Promise<EmailLinkResult>;
   /** Resolves the same way whether or not the e-mail has a pending account. */

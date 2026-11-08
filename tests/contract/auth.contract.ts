@@ -15,6 +15,13 @@ export type AuthContractEnv = Omit<ContractEnv<AuthPort>, "make"> & {
   withSession: <T>(fn: (auth: AuthPort) => Promise<T>) => Promise<T>;
   /** The adapter can revoke other live sessions (the mock's sealed cookies cannot be revoked). */
   revokesOtherSessions?: boolean;
+  /**
+   * Leaves the re-sign-up flag set on a CONFIRMED account, as when confirming it could not
+   * replace the password (the fail-closed path).
+   */
+  flagAsResignedUp: (userId: string) => Promise<void>;
+  /** Wait before an e-mail to the same address is sent again (GoTrue: 1 s locally). */
+  emailCooldownMs?: number;
 };
 
 const PASSWORD = "Senha@123";
@@ -133,6 +140,45 @@ export function describeAuthContract(env: AuthContractEnv) {
       });
       await env.withSession(async (auth) => {
         expect(await auth.signIn(email, "Terceira@123", false)).toMatchObject({ email });
+      });
+    });
+
+    it("a recovery link on a re-signed-up pending account keeps nobody's password", async () => {
+      await env.withSession((auth) =>
+        auth.signUp({ ...input(email), password: "Primeira@123" }, "/conta"),
+      );
+      await env.withSession((auth) =>
+        auth.signUp({ ...input(email), password: "Segunda@123" }, "/conta"),
+      );
+      await new Promise((r) => setTimeout(r, env.emailCooldownMs ?? 0));
+      // "Esqueci a senha" on the still pending account: the recovery link proves the e-mail.
+      await env.withSession((auth) => auth.requestPasswordReset(email));
+      const token = await latest(email, "recuperacao");
+      await env.withSession(async (auth) => {
+        expect(await auth.verifyEmailLink(token, "recovery")).toEqual({
+          ok: true,
+          mustSetPassword: true,
+        });
+        expect(await auth.currentUser()).toMatchObject({ email });
+        await env.withSession(async (other) => {
+          expect(await other.signIn(email, "Primeira@123", false)).toBeNull();
+          expect(await other.signIn(email, "Segunda@123", false)).toBeNull();
+        });
+        expect(await auth.updatePassword("Terceira@123")).toEqual({ ok: true });
+      });
+      await env.withSession(async (auth) => {
+        expect(await auth.signIn(email, "Terceira@123", false)).toMatchObject({ email });
+      });
+    });
+
+    it("refuses to sign in a confirmed account still flagged as re-signed-up", async () => {
+      const { userId } = await env.withSession((auth) => auth.signUp(input(email), "/conta"));
+      const token = await latest(email, "confirmacao");
+      await env.withSession((auth) => auth.verifyEmailLink(token, "email"));
+      await env.flagAsResignedUp(userId as string);
+      await env.withSession(async (auth) => {
+        expect(await auth.signIn(email, PASSWORD, true)).toBeNull();
+        expect(await auth.currentUser()).toBeNull();
       });
     });
 

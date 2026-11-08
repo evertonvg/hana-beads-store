@@ -67,7 +67,8 @@ export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
       const store = getMockStore();
       const key = normalize(email);
       const user = store.users.find((u) => u.email === key);
-      if (user && user.password === password) {
+      // Still flagged as re-signed-up (its password was never replaced): nobody's password counts.
+      if (user && user.password === password && user.resignup !== true) {
         await writeSession(await cookieStore(), user.id, remember, "password");
         return toUser(user);
       }
@@ -123,11 +124,11 @@ export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
 
     async completeOAuth(code) {
       // The mock has no real OAuth: every provider logs in as the "ana" fixture.
-      if (!OAUTH_CODE.test(code)) return false;
+      if (!OAUTH_CODE.test(code)) return { ok: false };
       const ana = getMockStore().users.find((u) => u.id === "ana");
-      if (!ana) return false;
+      if (!ana) return { ok: false };
       await writeSession(await cookieStore(), ana.id, false, "oauth");
-      return true;
+      return { ok: true };
     },
 
     async verifyEmailLink(tokenHash, type) {
@@ -135,13 +136,13 @@ export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
       const token = store.emailTokens[tokenHash];
       if (!token || token.type !== type) return { ok: false };
       delete store.emailTokens[tokenHash];
-      if (type === "email") {
-        const i = store.pendingUsers.findIndex((u) => u.id === token.userId);
-        if (i >= 0) store.users.push(...store.pendingUsers.splice(i, 1));
-      }
+      // Like GoTrue, a recovery link confirms a pending account too (it proves the e-mail).
+      const i = store.pendingUsers.findIndex((u) => u.id === token.userId);
+      if (i >= 0) store.users.push(...store.pendingUsers.splice(i, 1));
       const user = store.users.find((u) => u.id === token.userId);
       if (!user) return { ok: false };
-      const mustSetPassword = type === "email" && user.resignup === true;
+      // Re-signed-up: whichever link proves the e-mail scrambles the untrusted password.
+      const mustSetPassword = user.resignup === true;
       if (mustSetPassword) {
         user.password = crypto.randomUUID();
         delete user.resignup;
@@ -159,7 +160,10 @@ export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
 
     requestPasswordReset(email) {
       const store = getMockStore();
-      const user = store.users.find((u) => u.email === normalize(email));
+      const key = normalize(email);
+      // GoTrue also sends the recovery e-mail to an unconfirmed account.
+      const user =
+        store.users.find((u) => u.email === key) ?? store.pendingUsers.find((u) => u.email === key);
       if (user) sendLink(store, user, "recovery", RECOVERY_NEXT);
       return Promise.resolve();
     },

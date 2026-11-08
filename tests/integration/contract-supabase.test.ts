@@ -134,6 +134,13 @@ describeAuthContract({
   readInbox,
   withSession: (fn) => fn(authInJar().auth),
   revokesOtherSessions: true,
+  flagAsResignedUp: async (userId) => {
+    const { error } = await serviceClient().auth.admin.updateUserById(userId, {
+      app_metadata: { resignup: true },
+    });
+    if (error) throw new Error(error.message);
+  },
+  emailCooldownMs: 1100,
 });
 
 describe("supabase auth adapter", () => {
@@ -268,6 +275,68 @@ describe("supabase auth adapter", () => {
     expect(await authInJar().auth.signIn(email, "Terceira@123", false)).toMatchObject({ id });
   }
 
+  describe("GoTrue per-IP limit (429) on links and OAuth codes", () => {
+    const tooMany = () => ({
+      data: { user: null, session: null },
+      error: new AuthApiError("Request rate limit reached", 429, "over_request_rate_limit"),
+    });
+
+    it("verifyOtp goes through the IP-forwarding client; a 429 is retryable and keeps the link", async () => {
+      const email = `limite-${crypto.randomUUID().slice(0, 8)}@teste.dev`;
+      await authInJar().auth.signUp(
+        {
+          name: "Pessoa Limite",
+          email,
+          phone: "(11) 91234-5678",
+          password: "Senha@123",
+          acceptTerms: true,
+          marketingEmail: false,
+          termsVersion: "2026-10-28",
+        },
+        "/conta",
+      );
+      const token = new URL(await latestLink(email), "http://x.invalid").searchParams.get(
+        "token_hash",
+      ) as string;
+      const jar = cookieJar();
+      const { auth } = authInJar(jar, {
+        getAuthClient: () => {
+          const client = jarClient(jar, "secret");
+          client.auth.verifyOtp = () => Promise.resolve(tooMany());
+          return Promise.resolve(client);
+        },
+      });
+      expect(await auth.verifyEmailLink(token, "email")).toEqual({ ok: false, retry: true });
+      expect(await auth.currentUser()).toBeNull();
+      // Not consumed: the real verification still works.
+      expect(await authInJar().auth.verifyEmailLink(token, "email")).toEqual({
+        ok: true,
+        mustSetPassword: false,
+      });
+    });
+
+    it("exchangeCodeForSession goes through the IP-forwarding client; a 429 is retryable", async () => {
+      const jar = cookieJar();
+      let called = false;
+      const { auth } = authInJar(jar, {
+        getAuthClient: () => {
+          const client = jarClient(jar, "secret");
+          client.auth.exchangeCodeForSession = () => {
+            called = true;
+            return Promise.resolve(tooMany());
+          };
+          return Promise.resolve(client);
+        },
+      });
+      expect(await auth.completeOAuth("any-code")).toEqual({ ok: false, retry: true });
+      expect(called).toBe(true);
+    });
+
+    it("an unknown OAuth code is a plain failure", async () => {
+      expect(await authInJar().auth.completeOAuth("not-a-real-code")).toEqual({ ok: false });
+    });
+  });
+
   it("saves and reads back the signed-in user's cart", async () => {
     const { auth } = authInJar();
     const user = await auth.signIn(ANA.email, ANA.password, false);
@@ -374,8 +443,9 @@ describe("supabase auth adapter", () => {
       expect([...jar.jar.keys()].some((n) => n.includes("-auth-token"))).toBe(false);
       const stored = await serviceClient().auth.admin.getUserById(id);
       expect(stored.data.user?.app_metadata.resignup).toBe(true);
-      // Residual (documented): the account is confirmed and the first comer's password still works
-      // until the owner uses password recovery.
+      // Confirmed with the flag still set: the first comer's password opens nothing, and the
+      // owner's recovery link scrambles it (see the contract).
+      await oldPasswordsFail(email);
     });
   });
 });

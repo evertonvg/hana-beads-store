@@ -29,7 +29,8 @@ async function Screen({
   const tab = initialTab === "criar" || first(params.aba) === "criar" ? "criar" : "entrar";
   const mode: AuthMode = first(params.modo) === "recuperar" ? "recuperar" : "entrar";
   // Set by /auth/confirm and /auth/callback when the link or the social sign-in failed.
-  const linkError = first(params.erro) === "link";
+  const erro = first(params.erro);
+  const linkError = erro === "link" || erro === "tente-de-novo" ? erro : null;
   return (
     <AuthScreen
       // Same-route query changes (?aba=, ?modo=, ?erro=) must reset the state kept by the screen.

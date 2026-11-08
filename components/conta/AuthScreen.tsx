@@ -19,8 +19,18 @@ type Props = {
   /** Already sanitized by `safeNext` on the server. */
   next: string;
   authApple: boolean;
-  /** An e-mail link or social sign-in failed (`/entrar?erro=link`): shown above the login. */
-  linkError?: boolean;
+  /**
+   * An e-mail link or social sign-in failed, shown above the login: `link` (invalid, expired or
+   * used) or `tente-de-novo` (too many attempts right now; the link still works).
+   */
+  linkError?: LinkError | null;
+};
+
+export type LinkError = "link" | "tente-de-novo";
+
+const LINK_ERROR_COPY: Record<LinkError, string> = {
+  link: "Link inválido ou expirado. Peça um novo.",
+  "tente-de-novo": "Muitas tentativas agora. Espere um minuto e abra o link de novo.",
 };
 
 const lgpd = (
@@ -130,7 +140,7 @@ export function AuthScreen({ initialTab, initialMode, next, authApple, linkError
               role="alert"
               className="order-2 m-0 border-[3px] border-danger bg-bg p-3.5 text-center text-sm leading-relaxed text-danger-text"
             >
-              Link inválido ou expirado. Peça um novo.
+              {LINK_ERROR_COPY[linkError]}
             </p>
           ) : null}
           <div className="order-3 flex flex-col gap-3.5 md:order-4">

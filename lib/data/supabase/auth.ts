@@ -36,7 +36,11 @@ export type RememberCookieStore = {
 export type SupabaseAuthDeps = {
   /** Publishable-key, cookie-bound client: sessions and every data query (RLS applies). */
   getClient: () => Promise<Client>;
-  /** Secret-key, cookie-bound client: ONLY rate-limited `auth.*` calls (forwards the user's IP). */
+  /**
+   * Secret-key, cookie-bound client: ONLY rate-limited `auth.*` calls (sign-in, sign-up, e-mail
+   * sends, verifyOtp, exchangeCodeForSession), so GoTrue counts the user's IP and not the
+   * server's. The session refresh in the proxy stays on the publishable client (not forwarded).
+   */
   getAuthClient: () => Promise<Client>;
   /** Secret-key client without cookies: pending-account lookup, re-sign-up flag, admin updates. */
   getAdminClient: () => Client;
@@ -64,6 +68,11 @@ function isInfraError(e: unknown): boolean {
     e instanceof AuthUnknownError ||
     (isAuthApiError(e) && e.status >= 500)
   );
+}
+
+/** GoTrue's per-IP limit (e.g. token_verifications): retryable, the token or code is not used. */
+function isRateLimited(e: unknown): boolean {
+  return isAuthApiError(e) && (e.status === 429 || e.code === "over_request_rate_limit");
 }
 
 /** Runs a Supabase call; true when it neither returned an error nor threw. */
@@ -207,9 +216,12 @@ export function createSupabaseAuth(deps: SupabaseAuthDeps): AuthPort {
         if (error.code === "invalid_credentials") return null;
         toPortError(error);
       }
-      const user = await toAuthUser(data.user);
+      // Re-signed-up and confirmed while the scramble failed (the flag stays set): the password
+      // may be the first comer's, so it opens nothing; recovery is the way in. Else signed in but
+      // without a profile: treat as a missing account. Both answer like wrong credentials.
+      const untrusted = data.user.app_metadata[RESIGNUP_FLAG] === true;
+      const user = untrusted ? null : await toAuthUser(data.user);
       if (!user) {
-        // Signed in but without a profile: treat as a missing account.
         await (await deps.getClient()).auth.signOut({ scope: "local" });
         await setRemember(false);
       }
@@ -270,23 +282,30 @@ export function createSupabaseAuth(deps: SupabaseAuthDeps): AuthPort {
     },
 
     async completeOAuth(code) {
-      const { error } = await (await deps.getClient()).auth.exchangeCodeForSession(code);
-      if (error && isInfraError(error)) toPortError(error);
-      return !error;
+      // The PKCE verifier cookie is keyed by the project URL, so the secret-key client reads it.
+      const { error } = await (await deps.getAuthClient()).auth.exchangeCodeForSession(code);
+      if (!error) return { ok: true };
+      if (isRateLimited(error)) return { ok: false, retry: true };
+      if (isInfraError(error)) toPortError(error);
+      return { ok: false };
     },
 
     async verifyEmailLink(tokenHash, type) {
-      const client = await deps.getClient();
-      const { data, error } = await client.auth.verifyOtp({ token_hash: tokenHash, type });
+      const { data, error } = await (
+        await deps.getAuthClient()
+      ).auth.verifyOtp({ token_hash: tokenHash, type });
       if (error) {
+        if (isRateLimited(error)) return { ok: false, retry: true };
         if (isInfraError(error)) toPortError(error);
         return { ok: false };
       }
       const { user } = data;
-      if (type !== "email" || !user || user.app_metadata[RESIGNUP_FLAG] !== true) {
+      if (!user || user.app_metadata[RESIGNUP_FLAG] !== true) {
         return { ok: true, mustSetPassword: false };
       }
-      return scramblePassword(client, user.id, user.email ?? "");
+      // Either link proves the e-mail, and GoTrue also confirms a pending account on a recovery
+      // link (checked on the local stack): both must scramble, or the first comer's password stays.
+      return scramblePassword(await deps.getClient(), user.id, user.email ?? "");
     },
 
     async resendConfirmation(email, next) {

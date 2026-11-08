@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { cookies } = vi.hoisted(() => {
   const jar = new Map<string, string>();
@@ -67,6 +67,10 @@ const marked = () => cookies.get(FINISH_AUTH_COOKIE)?.value === "1";
 beforeEach(() => {
   getMockStore().reset();
   cookies.jar.clear();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("GET /auth/confirm", () => {
@@ -161,6 +165,34 @@ describe("GET /auth/confirm", () => {
     });
   });
 
+  it("too many attempts (429) goes to /entrar?erro=tente-de-novo and keeps the link usable", async () => {
+    const token = await signUpNova();
+    vi.spyOn(getData().auth, "verifyEmailLink").mockResolvedValueOnce({ ok: false, retry: true });
+    expect(await follow(confirm(request(`/auth/confirm?token_hash=${token}&type=email`)))).toEqual({
+      status: 303,
+      to: "/entrar?erro=tente-de-novo",
+    });
+    expect(signedIn()).toBe(false);
+    expect(marked()).toBe(false);
+    expect(getMockStore().emailTokens[token]).toBeDefined();
+    // Opened again a minute later, the same link works.
+    expect(await follow(confirm(request(`/auth/confirm?token_hash=${token}&type=email`)))).toEqual({
+      status: 303,
+      to: "/conta",
+    });
+  });
+
+  it("a recovery link on a re-signed-up pending account confirms it and must choose a password", async () => {
+    await signUpNova();
+    await signUpNova();
+    await getData().auth.requestPasswordReset("nova@teste.dev");
+    const token = lastToken();
+    expect(
+      await follow(confirm(request(`/auth/confirm?token_hash=${token}&type=recovery`))),
+    ).toEqual({ status: 303, to: "/redefinir-senha" });
+    expect(signedIn()).toBe(true);
+  });
+
   it("a re-signed-up account must choose a password: /redefinir-senha, not next", async () => {
     await signUpNova("/loja");
     const token = await signUpNova("/loja");
@@ -195,6 +227,16 @@ describe("GET /auth/callback", () => {
     expect(await follow(callback(request("/auth/callback?code=bad")))).toEqual({
       status: 303,
       to: "/entrar?erro=link",
+    });
+    expect(signedIn()).toBe(false);
+    expect(marked()).toBe(false);
+  });
+
+  it("too many attempts (429) goes to /entrar?erro=tente-de-novo without a session", async () => {
+    vi.spyOn(getData().auth, "completeOAuth").mockResolvedValueOnce({ ok: false, retry: true });
+    expect(await follow(callback(request("/auth/callback?code=mock-google")))).toEqual({
+      status: 303,
+      to: "/entrar?erro=tente-de-novo",
     });
     expect(signedIn()).toBe(false);
     expect(marked()).toBe(false);
