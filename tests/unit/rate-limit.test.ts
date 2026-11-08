@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getClientIp } = vi.hoisted(() => ({ getClientIp: vi.fn() }));
@@ -7,6 +9,9 @@ vi.mock("@/lib/client-ip", () => ({ getClientIp }));
 
 import { getMockStore } from "@/lib/data/mock/store";
 import { allowAttempt, RATE_LIMITED, RATE_LIMITS } from "@/lib/rate-limit";
+
+/** The e-mail part of a key: sha256 hex of the normalized e-mail. */
+const h = (email: string) => createHash("sha256").update(email).digest("hex");
 
 beforeEach(() => {
   getMockStore().reset();
@@ -18,7 +23,7 @@ describe("allowAttempt", () => {
   it("consumes the IP key and the normalized e-mail key", async () => {
     expect(await allowAttempt("login", "  Ana@Teste.DEV ")).toBe(true);
     expect(Object.keys(getMockStore().rateLimits).sort()).toEqual([
-      "email:login:ana@teste.dev",
+      `email:login:${h("ana@teste.dev")}`,
       "ip:login:203.0.113.9",
     ]);
   });
@@ -26,7 +31,9 @@ describe("allowAttempt", () => {
   it("without an IP, consumes only the e-mail key", async () => {
     getClientIp.mockResolvedValue(null);
     expect(await allowAttempt("cadastro", "ana@teste.dev")).toBe(true);
-    expect(Object.keys(getMockStore().rateLimits)).toEqual(["email:cadastro:ana@teste.dev"]);
+    expect(Object.keys(getMockStore().rateLimits)).toEqual([
+      `email:cadastro:${h("ana@teste.dev")}`,
+    ]);
   });
 
   it("without an e-mail, consumes only the IP key", async () => {
@@ -49,6 +56,18 @@ describe("allowAttempt", () => {
       expect(await allowAttempt("login", `p${i}@teste.dev`)).toBe(true);
     }
     expect(await allowAttempt("login", "outra@teste.dev")).toBe(false);
+  });
+
+  it("keeps keys within the 200-char column limit for a 254-char e-mail", async () => {
+    const email = `${"a".repeat(64)}@${"b".repeat(63)}.${"c".repeat(63)}.${"d".repeat(57)}.dev`;
+    expect(email).toHaveLength(254);
+    for (let i = 0; i < RATE_LIMITS.perEmail.max; i++) {
+      expect(await allowAttempt("aviso_estoque", email.toUpperCase())).toBe(true);
+    }
+    expect(await allowAttempt("aviso_estoque", email)).toBe(false);
+    const keys = Object.keys(getMockStore().rateLimits);
+    expect(keys).toContain(`email:aviso_estoque:${h(email)}`);
+    for (const key of keys) expect(key.length).toBeLessThanOrEqual(200);
   });
 
   it("uses the limits and message of the spec", () => {

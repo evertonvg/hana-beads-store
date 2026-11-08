@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+
 import { getClientIp } from "@/lib/client-ip";
 import { getData } from "@/lib/data";
 
@@ -17,8 +19,9 @@ export const RATE_LIMITS = {
 export const RATE_LIMITED = "Muitas tentativas. Tente de novo em alguns minutos.";
 
 /**
- * Counts one attempt of `action` under `ip:<action>:<ip>` and `email:<action>:<e-mail>`
- * (normalized). Without an IP (no proxy header) only the e-mail key is counted, and without an
+ * Counts one attempt of `action` under `ip:<action>:<ip>` and `email:<action>:<sha256>`, the hex
+ * SHA-256 of the normalized e-mail: keys stay short whatever the e-mail length (the column allows
+ * 200 chars, an e-mail up to 254) and the table holds no e-mail addresses. Without an IP (no proxy header) only the e-mail key is counted, and without an
  * e-mail only the IP one. Both keys are always consumed; false = at least one is over its limit
  * and the caller must refuse before calling the port.
  */
@@ -36,7 +39,8 @@ export async function allowAttempt(
   const normalized = email?.trim().toLowerCase();
   if (normalized) {
     const { max, windowSeconds } = RATE_LIMITS.perEmail;
-    hits.push(rateLimit.hit(`email:${action}:${normalized}`, max, windowSeconds));
+    const digest = createHash("sha256").update(normalized).digest("hex");
+    hits.push(rateLimit.hit(`email:${action}:${digest}`, max, windowSeconds));
   }
   return (await Promise.all(hits)).every(Boolean);
 }
