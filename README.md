@@ -57,7 +57,7 @@ Os e-mails de confirmação e de nova senha chegam no Mailpit (http://127.0.0.1:
 | `npm run test:integration` | Vitest contra o Supabase local (as chaves vêm de `supabase status`)            |
 | `npm run e2e:supabase`     | Playwright contra o app com `DATA_SOURCE=supabase` (cadastro, login, catálogo) |
 
-O CI (`.github/workflows/ci.yml`) roda `check` e, em job separado, tudo acima (o E2E mock e o Supabase compartilham `.next`).
+O CI (`.github/workflows/ci.yml`) roda `check` e, em job separado, tudo acima. O E2E mock (`npm run e2e`) não roda no CI: rode-o localmente.
 
 **Deploy das migrations:** `.github/workflows/deploy-db.yml` roda a cada push na `main` que altere `supabase/**` (ou manualmente) com `supabase link` + `supabase db push`. Secrets: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` e `SUPABASE_PROJECT_REF`. Sem `SUPABASE_PROJECT_REF` o job só emite um aviso (o projeto na nuvem ainda não existe).
 
@@ -69,6 +69,8 @@ O CI (`.github/workflows/ci.yml`) roda `check` e, em job separado, tudo acima (o
 - Crie no Vault os segredos `site_url` e `revalidate_secret` (mesmo valor de `REVALIDATE_SECRET`); sem eles o gatilho de revalidação não faz nada. Ao trocar o segredo, limpe também as linhas de `net.http_request_queue` e `net._http_response`, que guardam o cabeçalho Bearer antigo.
 - Ligue o "IP Address Forwarding" do Supabase Auth (`security_sb_forwarded_for_enabled`; Authentication → Rate Limits ou Management API) depois de criar o projeto.
 - SMTP do Resend (`RESEND_SMTP_HOST`, `RESEND_SMTP_USER`, `RESEND_SMTP_PASS`) com remetente real no lugar de `[PLACEHOLDER]`, e credenciais OAuth do Google e do Facebook (ver `docs/PENDENCIAS.md` §1).
+- **A configuração do Auth não vai pelo `deploy-db.yml`** (ele só aplica migrations). Antes de abrir a loja, rode `supabase config push` depois de trocar `site_url` e o remetente `[PLACEHOLDER]` em `supabase/config.toml`, ou configure no painel os templates de e-mail, os redirecionamentos e a confirmação de e-mail. Com os templates padrão do Supabase os links não passam por `/auth/confirm` e a confirmação quebra.
+- Limites do GoTrue na nuvem, por IP: `token_verifications` 30 a cada 5 min (links dos e-mails e códigos OAuth) e `token_refresh` 150 a cada 5 min. A verificação de link e a troca de código OAuth repassam o IP do usuário (`sb-forwarded-for`). A renovação de sessão no proxy usa a chave publicável e não repassa: todos os usuários contam no IP do servidor. Aumente os limites no painel (Authentication → Rate Limits) se for preciso. Um 429 nos links leva a `/entrar?erro=tente-de-novo`, e o link continua valendo.
 
 ## Padrões de código
 

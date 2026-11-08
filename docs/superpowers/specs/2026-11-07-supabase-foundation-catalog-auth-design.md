@@ -98,7 +98,7 @@ Mudanças no `AuthPort`. O adaptador mock é atualizado com o mesmo comportament
 
 Fluxos:
 
-- **Cadastro:** a action chama `signUp` e redireciona para a tela "Confira seu e-mail" (com botão de reenviar, sujeito ao limite de tentativas). O link do e-mail abre `/auth/confirm?token_hash=…&type=signup&next=…`, que executa `verifyOtp`, cria a sessão e redireciona para `next` (padrão `/conta`; só caminhos internos são aceitos).
+- **Cadastro:** a action chama `signUp` e redireciona para a tela "Confira seu e-mail" (com botão de reenviar, sujeito ao limite de tentativas). O link do e-mail abre `/auth/confirm?token_hash=…&type=email&next=…` (nota: `type=email`, não `signup`, que o Supabase marca como obsoleto para `verifyOtp` com `token_hash`), que executa `verifyOtp`, cria a sessão e redireciona para `next` (padrão `/conta`; só caminhos internos são aceitos).
 - **Checkout com "salvar meus dados":** a conta é criada pendente e o pedido segue como convidado (`guestToken` + cookie `pp_guest_orders`), já gravado com o `userId` novo. A tela de pedido confirmado mostra: "Enviamos um link para ativar sua conta." O aviso "E-mail já cadastrado" do checkout deixa de existir.
 - **Login com e-mail não confirmado:** mostra a mensagem e um botão para reenviar a confirmação.
 - **OAuth (Google, Facebook; Apple atrás de `NEXT_PUBLIC_AUTH_APPLE`):** a action obtém a URL e redireciona. `/auth/callback` executa `exchangeCodeForSession` e redireciona para `next`.

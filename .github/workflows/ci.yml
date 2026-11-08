@@ -20,7 +20,8 @@ jobs:
       - run: npm ci
       - run: npm run check
 
-  # Separate job: the mock E2E and the Supabase E2E share `.next`.
+  # Separate job: needs Docker and the local Supabase stack. The mock E2E (`npm run e2e`) is not
+  # run in CI; it shares `.next` with the Supabase E2E and runs locally.
   supabase:
     runs-on: ubuntu-latest
     timeout-minutes: 30
