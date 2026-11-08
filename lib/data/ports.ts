@@ -250,6 +250,8 @@ export type OrderViewer = { userId: string | null; guestTokens: string[] };
 export interface OrdersPort {
   /** The same idempotency key always gives back the same order. */
   create(i: CreateOrderInput, idempotencyKey: string): Promise<Order>;
+  /** The order an idempotency key already created (server use only: no viewer check). */
+  findByKey(idempotencyKey: string): Promise<Order | null>;
   /** null when the viewer does not own the order (simulates RLS). */
   get(id: string, viewer: OrderViewer): Promise<Order | null>;
   listForUser(userId: string): Promise<Order[]>;

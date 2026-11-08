@@ -43,6 +43,13 @@ export function createMockOrders(): OrdersPort {
       return Promise.resolve(structuredClone(order));
     },
 
+    findByKey(idempotencyKey) {
+      const store = getMockStore();
+      const id = store.orderKeys[idempotencyKey];
+      const order = id ? store.orders.find((o) => o.id === id) : undefined;
+      return Promise.resolve(order ? structuredClone(order) : null);
+    },
+
     get(id, viewer) {
       const order = getMockStore().orders.find((o) => o.id === id);
       const owns =

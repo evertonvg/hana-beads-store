@@ -152,8 +152,9 @@ describe("placeOrderAction", () => {
     expect(getMockStore().inbox.filter((m) => m.to === "ana@teste.dev")).toEqual([]);
   });
 
-  it("rate limits 'save my data' per e-mail, the same way for new and existing e-mails", async () => {
-    const tokenN = (i: number) => `3f6c1b1e-6d3b-4c6e-9d27-6f1b7a2d9c${String(i).padStart(2, "0")}`;
+  const tokenN = (i: number) => `3f6c1b1e-6d3b-4c6e-9d27-6f1b7a2d9c${String(i).padStart(2, "0")}`;
+
+  it("over the sign-up limit, still places the order as a plain guest order (no account)", async () => {
     for (const email of ["nova@teste.dev", "ana@teste.dev"]) {
       getMockStore().reset();
       for (let i = 0; i < 5; i++) {
@@ -164,24 +165,47 @@ describe("placeOrderAction", () => {
           saveAccount: true,
           password: "Senha@123",
         });
-        expect(ok.status).toBe("ok");
+        expect(ok).toMatchObject({ status: "ok", accountPending: true });
       }
-      const refused = await placeOrderAction({
+      const inboxBefore = getMockStore().inbox.length;
+      const sixth = await placeOrderAction({
         ...base,
         email,
         checkoutToken: tokenN(5),
         saveAccount: true,
         password: "Senha@123",
       });
-      expect(refused).toEqual({
-        status: "error",
-        message: "Muitas tentativas. Tente de novo em alguns minutos.",
+      // Same answer for a new and an existing e-mail: a guest order, no account pending, no error.
+      expect(sixth).toMatchObject({ status: "ok", accountPending: false });
+      expect(sixth.redirectTo).toMatch(/^\/pedido\/[^/]+\/pagamento$/);
+      expect(sixth).not.toHaveProperty("userId");
+      expect(placedOrders()).toHaveLength(6);
+      expect(placedOrders().find((o) => sixth.redirectTo?.includes(o.id))).toMatchObject({
+        userId: null,
       });
-      expect(placedOrders()).toHaveLength(5);
-      expect(getMockStore().inbox.length).toBeLessThanOrEqual(5);
+      expect(getMockStore().inbox).toHaveLength(inboxBefore);
     }
     // Without "save my data" nothing is counted: guest orders go on.
     expect((await placeOrderAction({ ...base, checkoutToken: tokenN(6) })).status).toBe("ok");
+  });
+
+  it("a retry with the same checkout token does not count a sign-up attempt", async () => {
+    const input = { ...base, saveAccount: true, password: "Senha@123" };
+    const first = await placeOrderAction(input);
+    for (let i = 0; i < 6; i++) {
+      expect(await placeOrderAction(input)).toEqual(first);
+    }
+    expect(placedOrders()).toHaveLength(1);
+    expect(getMockStore().inbox).toHaveLength(1);
+    // Four sign-up attempts are still left for this e-mail.
+    for (let i = 1; i <= 4; i++) {
+      expect(await placeOrderAction({ ...input, checkoutToken: tokenN(i) })).toMatchObject({
+        accountPending: true,
+      });
+    }
+    expect(await placeOrderAction({ ...input, checkoutToken: tokenN(5) })).toMatchObject({
+      accountPending: false,
+    });
   });
 
   it("does not mark the account pending without 'save my data'", async () => {
