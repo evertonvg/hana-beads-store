@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { expect, expectA11y, snap, test } from "./support/fixtures";
+import { expect, expectA11y, login, snap, test } from "./support/fixtures";
 import { gotoHydrated } from "./support/hydration";
 import { expectTouchTargets } from "./support/touch-targets";
 
@@ -75,6 +75,13 @@ test("senha fraca ou confirmação diferente não salvam", async ({ page, reques
 test("sem sessão, /redefinir-senha volta para pedir um link", async ({ page }) => {
   await page.goto("/redefinir-senha");
   await expect(page).toHaveURL(/\/entrar\?modo=recuperar$/);
+});
+
+test("logado com senha (sem link), /redefinir-senha manda para /conta", async ({ page }) => {
+  await login(page);
+  await expect(page).toHaveURL(/\/conta$/);
+  await page.goto("/redefinir-senha");
+  await expect(page).toHaveURL(/\/conta$/);
 });
 
 test("o link usado de novo cai em /entrar com o aviso de link inválido", async ({

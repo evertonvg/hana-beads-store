@@ -36,6 +36,17 @@ const input = (over: object = {}) => ({
 
 const ana = () => getMockStore().users.find((u) => u.id === "ana");
 
+/** Opens Ana's session through the recovery link, as /auth/confirm does. */
+async function openRecoveryLink() {
+  const { auth } = getData();
+  await auth.requestPasswordReset("ana@teste.dev");
+  const link = getMockStore().inbox.at(-1)?.link ?? "";
+  const token = new URL(link, "http://x.invalid").searchParams.get("token_hash") ?? "";
+  expect(await auth.verifyEmailLink(token, "recovery")).toMatchObject({ ok: true });
+}
+
+const REFUSED = "Não foi possível alterar a senha. Tente outra senha ou peça um novo link.";
+
 beforeEach(() => {
   getMockStore().reset();
   cookies.jar.clear();
@@ -55,8 +66,8 @@ describe("resetPasswordSchema", () => {
 });
 
 describe("resetPasswordAction", () => {
-  it("changes the password of the signed-in user and sends to /conta", async () => {
-    await getData().auth.signIn("ana@teste.dev", "Senha@123", false);
+  it("changes the password of a session the recovery link opened and sends to /conta", async () => {
+    await openRecoveryLink();
     expect(await resetPasswordAction(input())).toEqual({
       status: "ok",
       message: "Senha alterada.",
@@ -66,7 +77,7 @@ describe("resetPasswordAction", () => {
   });
 
   it("returns the field errors for an invalid input and changes nothing", async () => {
-    await getData().auth.signIn("ana@teste.dev", "Senha@123", false);
+    await openRecoveryLink();
     const r = await resetPasswordAction(input({ password: "fraca", confirmPassword: "fraca" }));
     expect(r).toMatchObject({
       status: "error",
@@ -83,8 +94,32 @@ describe("resetPasswordAction", () => {
     });
   });
 
-  it("a refused update gives an error, not a redirect", async () => {
+  it("refuses a session opened with the password (it must give the current one in /conta)", async () => {
     await getData().auth.signIn("ana@teste.dev", "Senha@123", false);
+    expect(await resetPasswordAction(input())).toEqual({ status: "error", message: REFUSED });
+    expect(ana()?.password).toBe("Senha@123");
+  });
+
+  it("refuses a social sign-in session", async () => {
+    await getData().auth.completeOAuth("mock-google");
+    expect(await resetPasswordAction(input())).toEqual({ status: "error", message: REFUSED });
+    expect(ana()?.password).toBe("Senha@123");
+  });
+
+  it("refuses a link session older than 15 minutes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      await openRecoveryLink();
+      vi.setSystemTime(Date.now() + 16 * 60 * 1000);
+      expect(await resetPasswordAction(input())).toEqual({ status: "error", message: REFUSED });
+      expect(ana()?.password).toBe("Senha@123");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a refused update gives an error, not a redirect", async () => {
+    await openRecoveryLink();
     const spy = vi.spyOn(getData().auth, "updatePassword").mockResolvedValueOnce({ ok: false });
     const r = await resetPasswordAction(input());
     expect(r.status).toBe("error");
@@ -93,7 +128,7 @@ describe("resetPasswordAction", () => {
   });
 
   it("an infrastructure failure gives the generic error", async () => {
-    await getData().auth.signIn("ana@teste.dev", "Senha@123", false);
+    await openRecoveryLink();
     const spy = vi.spyOn(getData().auth, "updatePassword").mockRejectedValueOnce(new Error("down"));
     vi.spyOn(console, "error").mockImplementationOnce(() => undefined);
     expect(await resetPasswordAction(input())).toEqual({

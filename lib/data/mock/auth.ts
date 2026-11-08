@@ -1,10 +1,17 @@
 import { cookies as nextCookies } from "next/headers";
 
+import { withinLinkResetWindow } from "@/lib/auth/link-reset";
 import type { AuthPort, AuthUser, EmailLinkType, SignUpInput } from "@/lib/data/ports";
 import { MARKETING_CONSENT_VERSION } from "@/lib/validation/account";
 
 import type { MockUser } from "./fixtures";
-import { clearSession, readSession, writeSession, type CookieStore } from "./session-cookie";
+import {
+  clearSession,
+  readSession,
+  readSignIn,
+  writeSession,
+  type CookieStore,
+} from "./session-cookie";
 import { getMockStore, type MockInboxMessage, type MockStore } from "./store";
 
 const normalize = (email: string) => email.trim().toLowerCase();
@@ -61,7 +68,7 @@ export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
       const key = normalize(email);
       const user = store.users.find((u) => u.email === key);
       if (user && user.password === password) {
-        await writeSession(await cookieStore(), user.id, remember);
+        await writeSession(await cookieStore(), user.id, remember, "password");
         return toUser(user);
       }
       const pending = store.pendingUsers.find((u) => u.email === key);
@@ -119,7 +126,7 @@ export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
       if (!OAUTH_CODE.test(code)) return false;
       const ana = getMockStore().users.find((u) => u.id === "ana");
       if (!ana) return false;
-      await writeSession(await cookieStore(), ana.id, false);
+      await writeSession(await cookieStore(), ana.id, false, "oauth");
       return true;
     },
 
@@ -139,7 +146,7 @@ export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
         user.password = crypto.randomUUID();
         delete user.resignup;
       }
-      await writeSession(await cookieStore(), user.id, false);
+      await writeSession(await cookieStore(), user.id, false, "link");
       return { ok: true, mustSetPassword };
     },
 
@@ -164,6 +171,11 @@ export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
       if (!user) return { ok: false };
       user.password = next;
       return { ok: true };
+    },
+
+    async linkSessionAllowsPasswordReset() {
+      const signIn = await readSignIn(await cookieStore());
+      return signIn?.method === "link" && withinLinkResetWindow(signIn.signedInAt);
     },
 
     async signOut() {

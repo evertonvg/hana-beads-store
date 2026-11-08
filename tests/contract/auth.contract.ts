@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AuthPort, SignUpInput } from "@/lib/data/ports";
 
@@ -96,6 +96,8 @@ export function describeAuthContract(env: AuthContractEnv) {
           name: "Pessoa Contrato",
           email,
         });
+        // A confirmation link session may also choose a password without the current one.
+        expect(await auth.linkSessionAllowsPasswordReset()).toBe(true);
       });
       await env.withSession(async (auth) => {
         expect(await auth.verifyEmailLink(token, "email")).toEqual({ ok: false });
@@ -185,6 +187,28 @@ export function describeAuthContract(env: AuthContractEnv) {
         expect(await auth.signIn("ana@teste.dev", "Nova@1234", false)).toMatchObject({
           email: "ana@teste.dev",
         });
+      });
+    });
+
+    it("only a session an e-mail link opened in the last 15 minutes may reset the password", async () => {
+      await env.withSession(async (auth) => {
+        expect(await auth.linkSessionAllowsPasswordReset()).toBe(false);
+        expect(await auth.signIn("ana@teste.dev", PASSWORD, false)).not.toBeNull();
+        expect(await auth.linkSessionAllowsPasswordReset()).toBe(false);
+      });
+      await env.withSession((auth) => auth.requestPasswordReset("ana@teste.dev"));
+      const token = await latest("ana@teste.dev", "recuperacao");
+      await env.withSession(async (auth) => {
+        expect(await auth.verifyEmailLink(token, "recovery")).toMatchObject({ ok: true });
+        expect(await auth.linkSessionAllowsPasswordReset()).toBe(true);
+        // Only the clock moves: the session itself is still valid, the proof is not.
+        vi.useFakeTimers({ toFake: ["Date"] });
+        try {
+          vi.setSystemTime(Date.now() + 16 * 60 * 1000);
+          expect(await auth.linkSessionAllowsPasswordReset()).toBe(false);
+        } finally {
+          vi.useRealTimers();
+        }
       });
     });
 

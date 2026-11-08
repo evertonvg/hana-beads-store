@@ -7,7 +7,16 @@ export const REMEMBER_SECONDS = 30 * 24 * 60 * 60;
 /** Without "manter conectado" the browser drops the cookie on close; this caps the seal anyway. */
 export const SHORT_SECONDS = 24 * 60 * 60;
 
-export type SessionPayload = { userId?: string; expiresAt?: number };
+/** How the session was opened; "link" = an e-mail link (confirmation or recovery). */
+export type SignInMethod = "link" | "password" | "oauth";
+
+export type SessionPayload = {
+  userId?: string;
+  expiresAt?: number;
+  method?: SignInMethod;
+  /** Epoch ms of the sign-in. */
+  signedInAt?: number;
+};
 
 export type { CookieStore };
 
@@ -58,15 +67,32 @@ export async function readSession(store: CookieStore): Promise<string | null> {
   return liveUserId(await getIronSession<SessionPayload>(store, sessionOptions()));
 }
 
-/** Seals `userId` into the session cookie. `remember` keeps it for 30 days. */
+/** The live session's sign-in method and time, or null (no cookie, tampered or expired seal). */
+export async function readSignIn(
+  store: CookieStore,
+): Promise<{ method: SignInMethod; signedInAt: number } | null> {
+  const payload = await getIronSession<SessionPayload>(store, sessionOptions());
+  if (!liveUserId(payload) || !payload.method || typeof payload.signedInAt !== "number")
+    return null;
+  return { method: payload.method, signedInAt: payload.signedInAt };
+}
+
+/**
+ * Seals `userId`, how it signed in and when into the session cookie (sealed: the browser cannot
+ * change them). `remember` keeps it for 30 days.
+ */
 export async function writeSession(
   store: CookieStore,
   userId: string,
   remember: boolean,
+  method: SignInMethod = "password",
 ): Promise<void> {
   const session = await getIronSession<SessionPayload>(store, sessionOptions(remember));
+  const now = Date.now();
   session.userId = userId;
-  session.expiresAt = Date.now() + (remember ? REMEMBER_SECONDS : SHORT_SECONDS) * 1000;
+  session.expiresAt = now + (remember ? REMEMBER_SECONDS : SHORT_SECONDS) * 1000;
+  session.method = method;
+  session.signedInAt = now;
   await session.save();
 }
 

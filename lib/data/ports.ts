@@ -118,6 +118,13 @@ export interface AuthPort {
   requestPasswordReset(email: string): Promise<void>;
   /** Needs the recovery (or a normal) session; signs every other session out. */
   updatePassword(next: string): Promise<{ ok: boolean }>;
+  /**
+   * True only when the current session was opened by an e-mail link (confirmation or recovery)
+   * less than `LINK_RESET_WINDOW_SECONDS` ago. Proven by data the client cannot forge (Supabase:
+   * the signed JWT `amr` claim; mock: the sealed session). /redefinir-senha sets a password
+   * without the current one, so a session opened with a password or a provider must not.
+   */
+  linkSessionAllowsPasswordReset(): Promise<boolean>;
   signOut(): Promise<void>;
   /** The signed-in user; null without a session or when the account is gone. */
   currentUser(): Promise<AuthUser | null>;

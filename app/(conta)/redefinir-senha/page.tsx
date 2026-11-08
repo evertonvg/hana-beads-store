@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AuthFallback } from "@/components/conta/AuthPage";
 import { ResetPasswordForm } from "@/components/conta/ResetPasswordForm";
+import { getData } from "@/lib/data";
 import { getSession } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -10,10 +11,15 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-/** Needs the session the e-mail link opened: without one, back to asking for a new link. */
+/**
+ * Needs a session the e-mail link opened moments ago (it sets a password without the current one).
+ * Signed out: back to asking for a new link. Signed in some other way: /conta, where changing the
+ * password asks for the current one.
+ */
 async function Screen() {
-  const user = await getSession().catch(() => null);
+  const user = await getSession();
   if (!user) redirect("/recuperar-senha");
+  if (!(await getData().auth.linkSessionAllowsPasswordReset())) redirect("/conta");
   return (
     <div className="mx-auto w-full max-w-[480px] px-4 pt-6 pb-10 md:px-6 md:pt-[72px] md:pb-24">
       <div className="flex flex-col gap-7">

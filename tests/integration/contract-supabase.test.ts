@@ -256,6 +256,8 @@ describe("supabase auth adapter", () => {
     const { auth } = authInJar();
     expect(await auth.verifyEmailLink(token, "email")).toEqual({ ok: true, mustSetPassword: true });
     expect(await auth.currentUser()).toMatchObject({ id, name: "Dona do E-mail" });
+    // The scrambled account sets its password on /redefinir-senha: still an e-mail-link session.
+    expect(await auth.linkSessionAllowsPasswordReset()).toBe(true);
     const stored = await serviceClient().auth.admin.getUserById(id);
     expect(stored.data.user?.app_metadata.resignup).toBeUndefined();
 
@@ -345,6 +347,8 @@ describe("supabase auth adapter", () => {
         mustSetPassword: true,
       });
       expect(await auth.currentUser()).toMatchObject({ id });
+      // Reopened with an admin-generated magic link: still allowed on /redefinir-senha.
+      expect(await auth.linkSessionAllowsPasswordReset()).toBe(true);
       await oldPasswordsFail(email);
       const stored = await serviceClient().auth.admin.getUserById(id);
       expect(stored.data.user?.app_metadata.resignup).toBeUndefined();
