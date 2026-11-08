@@ -2,14 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
 import type { Database } from "./database.types";
-import { applyRememberPolicy, REMEMBER_COOKIE } from "./remember";
+import { applyRememberPolicy, isRemembered } from "./remember";
 
 /** Refreshes the Supabase session on each request and returns the response carrying the new cookies. */
 export async function updateSession(
   request: NextRequest,
 ): Promise<{ response: NextResponse; userId: string | null }> {
   let response = NextResponse.next({ request });
-  const remember = request.cookies.has(REMEMBER_COOKIE);
+  const remember = isRemembered(request.cookies);
 
   const supabase = createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL!,

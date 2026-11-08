@@ -4,12 +4,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { env } from "@/lib/env";
 import type { Database } from "./database.types";
-import { applyRememberPolicy, REMEMBER_COOKIE } from "./remember";
+import { applyRememberPolicy, isRemembered } from "./remember";
 
 /** Cookie-bound client (publishable key) for Server Components and Server Actions. */
 export async function createSupabaseServerClient(): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies();
-  const remember = cookieStore.has(REMEMBER_COOKIE);
+  const remember = isRemembered(cookieStore);
   return createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL!,
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,

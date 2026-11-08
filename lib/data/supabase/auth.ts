@@ -10,7 +10,7 @@ import { withinLinkResetWindow } from "@/lib/auth/link-reset";
 import type { CartData } from "@/lib/cart/types";
 import type { AuthPort, AuthUser, EmailLinkResult, SignUpInput } from "@/lib/data/ports";
 import type { Database, Json } from "@/lib/supabase/database.types";
-import { REMEMBER_COOKIE, REMEMBER_MAX_AGE } from "@/lib/supabase/remember";
+import { REMEMBER_COOKIE, REMEMBER_MAX_AGE, REMEMBER_VALUE } from "@/lib/supabase/remember";
 import { MARKETING_CONSENT_VERSION } from "@/lib/validation/account";
 
 import { toPortError } from "./errors";
@@ -106,7 +106,7 @@ export function createSupabaseAuth(deps: SupabaseAuthDeps): AuthPort {
   async function setRemember(remember: boolean) {
     const store = await cookieStore();
     if (remember) {
-      store.set(REMEMBER_COOKIE, "1", {
+      store.set(REMEMBER_COOKIE, REMEMBER_VALUE, {
         maxAge: REMEMBER_MAX_AGE,
         httpOnly: true,
         sameSite: "lax",

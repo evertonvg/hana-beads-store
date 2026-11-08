@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { env } from "@/lib/env";
 import type { Database } from "./database.types";
-import { applyRememberPolicy, REMEMBER_COOKIE } from "./remember";
+import { applyRememberPolicy, isRemembered } from "./remember";
 
 /**
  * Client for rate-limited `supabase.auth.*` calls only (signIn, signUp, resend, resetPasswordForEmail).
@@ -15,7 +15,7 @@ export async function createSupabaseAuthClient(
   clientIp: string | null,
 ): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies();
-  const remember = cookieStore.has(REMEMBER_COOKIE);
+  const remember = isRemembered(cookieStore);
   return createServerClient<Database>(env.NEXT_PUBLIC_SUPABASE_URL!, env.SUPABASE_SECRET_KEY!, {
     global: { headers: clientIp ? { "sb-forwarded-for": clientIp } : {} },
     cookies: {

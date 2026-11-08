@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { applyRememberPolicy, REMEMBER_MAX_AGE } from "@/lib/supabase/remember";
+import {
+  applyRememberPolicy,
+  isRemembered,
+  REMEMBER_COOKIE,
+  REMEMBER_MAX_AGE,
+} from "@/lib/supabase/remember";
+
+/** A cookie store as `cookies()` / `request.cookies` expose it, holding `jar`. */
+const store = (jar: Record<string, string>) => ({
+  get: (name: string) => (name in jar ? { name, value: jar[name] } : undefined),
+});
 
 describe("applyRememberPolicy", () => {
   it("drops maxAge and expires without remember, keeping the rest", () => {
@@ -25,5 +35,18 @@ describe("applyRememberPolicy", () => {
     });
     const past = new Date(0);
     expect(applyRememberPolicy({ expires: past, path: "/" }, remember).expires).toBe(past);
+  });
+});
+
+describe("isRemembered", () => {
+  it("is true only while pp_remember holds the opt-in value", () => {
+    expect(isRemembered(store({ [REMEMBER_COOKIE]: "1" }))).toBe(true);
+    expect(isRemembered(store({}))).toBe(false);
+  });
+
+  // A server action that just cleared the choice (set "" with maxAge 0) still sees the cookie in
+  // its own store: presence alone would hand a 30-day session to "manter conectado" unchecked.
+  it("is false for the empty value left by clearing the choice in the same request", () => {
+    expect(isRemembered(store({ [REMEMBER_COOKIE]: "" }))).toBe(false);
   });
 });
