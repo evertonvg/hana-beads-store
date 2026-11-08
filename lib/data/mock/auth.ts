@@ -35,13 +35,26 @@ function sendLink(store: MockStore, user: MockUser, type: EmailLinkType, next: s
   store.inbox.push({ to: user.email, kind, link: `/auth/confirm?${query.toString()}` });
 }
 
-/** Profile data the Supabase trigger saves at sign-up: consents, CPF and the checkout address. */
+/**
+ * Profile data the Supabase trigger saves at sign-up: consents (always appended) and the checkout
+ * address (only when the account has none: a re-sign-up never replaces it).
+ */
 function recordSignUpData(store: MockStore, user: MockUser, input: SignUpInput) {
-  if (input.address) {
+  if (input.address && !store.addresses[user.id]?.length) {
     store.addresses[user.id] = [{ ...input.address, id: crypto.randomUUID(), isDefault: true }];
   }
   const grantedAt = new Date().toISOString();
-  const grant = (type: "terms" | "privacy" | "email_marketing", version = input.termsVersion) =>
+  const grant = (type: "terms" | "privacy" | "email_marketing", version = input.termsVersion) => {
+    // Appended, but the same consent (type and version, still granted) is not recorded twice.
+    const recorded = store.consents.some(
+      (c) =>
+        c.userId === user.id &&
+        c.type === type &&
+        c.version === version &&
+        c.granted &&
+        c.revokedAt === null,
+    );
+    if (recorded) return;
     store.consents.push({
       userId: user.id,
       type,
@@ -50,6 +63,7 @@ function recordSignUpData(store: MockStore, user: MockUser, input: SignUpInput) 
       grantedAt,
       revokedAt: null,
     });
+  };
   grant("terms");
   grant("privacy");
   if (input.marketingEmail) grant("email_marketing", MARKETING_CONSENT_VERSION);
@@ -85,16 +99,14 @@ export function createMockAuth(deps: MockAuthDeps = {}): AuthPort {
       }
       const pending = store.pendingUsers.find((u) => u.email === email);
       if (pending) {
-        // Like the Supabase adapter: the latest sign-up replaces the data but NOT the password, and
-        // flags the account so confirming it scrambles the password (nobody's password survives).
-        // A new link replaces the old ones.
+        // Like the Supabase adapter: the latest sign-up refreshes name and phone but keeps the
+        // password, the CPF and the address (it may be a third party's checkout), appends its
+        // consents, and flags the account so that the link scrambles the password (nobody's
+        // password survives). A new link replaces the old ones.
         pending.name = input.name.trim();
         pending.phone = input.phone;
         pending.resignup = true;
-        if (input.cpf) pending.cpf = input.cpf;
-        else delete pending.cpf;
-        store.consents = store.consents.filter((c) => c.userId !== pending.id);
-        delete store.addresses[pending.id];
+        if (!pending.cpf && input.cpf) pending.cpf = input.cpf;
         for (const [token, link] of Object.entries(store.emailTokens)) {
           if (link.userId === pending.id) delete store.emailTokens[token];
         }

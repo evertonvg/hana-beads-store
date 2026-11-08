@@ -141,6 +141,26 @@ describeAuthContract({
     if (error) throw new Error(error.message);
   },
   emailCooldownMs: 1100,
+  signUpData: async (userId) => {
+    const admin = serviceClient();
+    const profile = await admin
+      .from("profiles")
+      .select("name, phone, cpf")
+      .eq("id", userId)
+      .single();
+    const addresses = await admin.from("addresses").select("street").eq("user_id", userId);
+    const consents = await admin.from("consents").select("type, version").eq("user_id", userId);
+    if (profile.error) throw new Error(profile.error.message);
+    if (addresses.error) throw new Error(addresses.error.message);
+    if (consents.error) throw new Error(consents.error.message);
+    return {
+      name: profile.data.name,
+      phone: profile.data.phone,
+      cpf: profile.data.cpf,
+      streets: addresses.data.map((a) => a.street),
+      consents: consents.data.map((c) => `${c.type}:${c.version}`).toSorted(),
+    };
+  },
 });
 
 describe("supabase auth adapter", () => {
@@ -186,7 +206,7 @@ describe("supabase auth adapter", () => {
     expect(authCookie(jar)?.[1].value).not.toBe(before);
   });
 
-  it("a later sign-up for a pending e-mail replaces its data, not its password", async () => {
+  it("a later sign-up for a pending e-mail keeps its CPF and address, not its password", async () => {
     const email = `pendente-${crypto.randomUUID().slice(0, 8)}@teste.dev`;
     const base = {
       email,
@@ -224,11 +244,12 @@ describe("supabase auth adapter", () => {
     const admin = serviceClient();
     const id = first.userId as string;
     const profile = await admin.from("profiles").select("name, cpf").eq("id", id).single();
-    expect(profile.data).toEqual({ name: "Dona do E-mail", cpf: null });
+    expect(profile.data).toEqual({ name: "Dona do E-mail", cpf: "12345678909" });
     const consents = await admin.from("consents").select("type").eq("user_id", id).order("type");
-    expect(consents.data?.map((c) => c.type)).toEqual(["privacy", "terms"]);
-    const addresses = await admin.from("addresses").select("id").eq("user_id", id);
-    expect(addresses.data).toEqual([]);
+    // Same terms version both times: nothing new to append, nothing deleted (marketing stays).
+    expect(consents.data?.map((c) => c.type)).toEqual(["email_marketing", "privacy", "terms"]);
+    const addresses = await admin.from("addresses").select("street").eq("user_id", id);
+    expect(addresses.data).toEqual([{ street: "Av. Paulista" }]);
 
     await expectScrambledOnConfirm(email, id, await latestLink(email));
   });

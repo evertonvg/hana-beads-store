@@ -75,6 +75,21 @@ describeAuthContract({
     user.resignup = true;
     return Promise.resolve();
   },
+  signUpData: (userId) => {
+    const store = getMockStore();
+    const user = [...store.users, ...store.pendingUsers].find((u) => u.id === userId);
+    if (!user) throw new Error(`no user ${userId}`);
+    return Promise.resolve({
+      name: user.name,
+      phone: user.phone ?? null,
+      cpf: user.cpf ? user.cpf.replace(/\D/g, "") : null,
+      streets: (store.addresses[userId] ?? []).map((a) => a.street),
+      consents: store.consents
+        .filter((c) => c.userId === userId)
+        .map((c) => `${c.type}:${c.version}`)
+        .toSorted(),
+    });
+  },
 });
 
 const resetMock = () => {

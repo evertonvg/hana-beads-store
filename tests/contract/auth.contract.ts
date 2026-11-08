@@ -22,6 +22,17 @@ export type AuthContractEnv = Omit<ContractEnv<AuthPort>, "make"> & {
   flagAsResignedUp: (userId: string) => Promise<void>;
   /** Wait before an e-mail to the same address is sent again (GoTrue: 1 s locally). */
   emailCooldownMs?: number;
+  /** What sign-up saved for an account (read with admin rights). */
+  signUpData: (userId: string) => Promise<SignUpData>;
+};
+
+/** cpf as digits; consents as "type:version", sorted; streets of the saved addresses. */
+export type SignUpData = {
+  name: string;
+  phone: string | null;
+  cpf: string | null;
+  streets: string[];
+  consents: string[];
 };
 
 const PASSWORD = "Senha@123";
@@ -180,6 +191,63 @@ export function describeAuthContract(env: AuthContractEnv) {
         expect(await auth.signIn(email, PASSWORD, true)).toBeNull();
         expect(await auth.currentUser()).toBeNull();
       });
+    });
+
+    it("a new sign-up for a pending e-mail keeps its CPF and address and appends consents", async () => {
+      const { userId } = await env.withSession((auth) =>
+        auth.signUp(
+          {
+            ...input(email),
+            name: "Dona do E-mail",
+            marketingEmail: true,
+            cpf: "123.456.789-09",
+            address: {
+              cep: "01310-100",
+              street: "Av. Paulista",
+              number: "1000",
+              district: "Bela Vista",
+              city: "São Paulo",
+              state: "SP",
+            },
+          },
+          "/conta",
+        ),
+      );
+      // E.g. someone else's checkout with "save my data" for the same e-mail.
+      await env.withSession((auth) =>
+        auth.signUp(
+          {
+            ...input(email),
+            name: "Outra Pessoa",
+            phone: "(21) 98888-7777",
+            termsVersion: "2026-11-01",
+            cpf: "529.982.247-25",
+            address: {
+              cep: "20040-020",
+              street: "Rua da Assembleia",
+              number: "10",
+              district: "Centro",
+              city: "Rio de Janeiro",
+              state: "RJ",
+            },
+          },
+          "/conta/pedidos",
+        ),
+      );
+      const data = await env.signUpData(userId as string);
+      expect(data).toMatchObject({
+        name: "Outra Pessoa",
+        cpf: "12345678909",
+        streets: ["Av. Paulista"],
+      });
+      expect(data.phone?.replace(/\D/g, "")).toBe("21988887777");
+      expect(data.consents).toEqual([
+        expect.stringMatching(/^email_marketing:/),
+        "privacy:2026-10-28",
+        "privacy:2026-11-01",
+        "terms:2026-10-28",
+        "terms:2026-11-01",
+      ]);
     });
 
     it("rejects a made-up token", async () => {
