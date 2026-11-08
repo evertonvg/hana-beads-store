@@ -56,6 +56,25 @@ async function signUpNova(page: Page, email = "nova@teste.dev") {
   await submitSignup(page).click();
   await expect(page.getByRole("heading", { name: "CONFIRA SEU E-MAIL" })).toBeVisible();
 }
+/** Seeds a guest cart with one "garota" line (once: later navigations keep what the app saved). */
+async function seedGuestCart(page: Page) {
+  await page.addInitScript(
+    ([key, value]) => localStorage.getItem(key) ?? localStorage.setItem(key, value),
+    [
+      CART_KEY,
+      JSON.stringify({
+        state: { lines: [{ productId: "garota", ring: "mosquetao", qty: 1 }] },
+        version: 1,
+      }),
+    ] as [string, string],
+  );
+}
+
+async function storedCart(page: Page): Promise<unknown> {
+  const stored = await page.evaluate((key) => localStorage.getItem(key), CART_KEY);
+  return JSON.parse(stored ?? "{}") as unknown;
+}
+
 const marketing = (page: Page) => page.getByRole("checkbox", { name: /novidades e lançamentos/ });
 
 test.describe("entrar", () => {
@@ -125,12 +144,29 @@ test.describe("entrar", () => {
     await expectSignedInHeader(page, isMobile);
   });
 
-  // The callback route (which creates the session and follows `next`) lands in a later task:
-  // until then these check that the button leaves for the provider URL with the safe next.
-  test("o login social vai para a URL do provedor levando o next", async ({ page }) => {
+  // The mock provider sends straight to /auth/callback?code=mock-google, which signs in as Ana.
+  test("o login social passa pelo callback, entra como a Ana e volta ao next", async ({
+    page,
+    isMobile,
+  }) => {
+    const callback = page.waitForRequest(/\/auth\/callback\?code=mock-google&next=%2Floja$/);
     await gotoHydrated(page, "/entrar?next=%2Floja");
     await page.getByRole("button", { name: "Continuar com Google" }).click();
-    await expect(page).toHaveURL(/\/auth\/callback\?code=mock-google&next=%2Floja$/);
+    await callback;
+    await expect(page).toHaveURL(/\/loja$/);
+    await expectSignedInHeader(page, isMobile);
+  });
+
+  test("o login social junta o carrinho de visitante com o salvo da Ana", async ({
+    page,
+    isMobile,
+  }) => {
+    await seedGuestCart(page);
+    await gotoHydrated(page, "/entrar");
+    await page.getByRole("button", { name: "Continuar com Google" }).click();
+    await expect(page).toHaveURL(/\/conta$/);
+    await expect(cartLink(page, isMobile, 2)).toBeVisible();
+    expect(await storedCart(page)).toMatchObject({ state: { owner: "ana" } });
   });
 
   for (const evil of ["//evil.com", "/\\evil.com", "https://evil.com", "/%2F%2Fevil.com"]) {
@@ -166,10 +202,20 @@ test.describe("entrar", () => {
     expect(days).toBeLessThanOrEqual(30);
   });
 
-  test("login social sem next vai para o provedor com next=/conta", async ({ page }) => {
+  test("login social sem next passa pelo callback com next=/conta e cai em /conta", async ({
+    page,
+  }) => {
+    const callback = page.waitForRequest(/\/auth\/callback\?code=mock-facebook&next=%2Fconta$/);
     await gotoHydrated(page, "/entrar");
     await page.getByRole("button", { name: "Continuar com Facebook" }).click();
-    await expect(page).toHaveURL(/\/auth\/callback\?code=mock-facebook&next=%2Fconta$/);
+    await callback;
+    await expect(page).toHaveURL(/\/conta$/);
+  });
+
+  test("um código de login social inválido mostra o aviso de link inválido", async ({ page }) => {
+    await page.goto("/auth/callback?code=invalido");
+    await expect(page).toHaveURL(/\/entrar\?erro=link$/);
+    await expect(page.getByText("Link inválido ou expirado. Peça um novo.")).toBeVisible();
   });
 
   test("conta não confirmada pede a confirmação e oferece REENVIAR LINK", async ({
@@ -381,8 +427,6 @@ test.describe("cadastro", () => {
     expect(await inboxOf(request, "ana@teste.dev")).toEqual([]);
   });
 
-  // Opening the link (/auth/confirm creates the session) lands with the confirm route in a later
-  // task; here the flow stops at the e-mail the mock "sent".
   test("sucesso abre CONFIRA SEU E-MAIL, sem sessão, e o link chega na caixa", async ({
     page,
     context,
@@ -397,6 +441,38 @@ test.describe("cadastro", () => {
     expect(inbox).toHaveLength(1);
     expect(inbox[0]).toMatchObject({ to: "nova@teste.dev", kind: "confirmacao" });
     expect(inbox[0]?.link).toMatch(/^\/auth\/confirm\?token_hash=[^&]+&type=email&next=%2Fconta$/);
+  });
+
+  test("o link do e-mail confirma a conta, entra em /conta e junta o carrinho", async ({
+    page,
+    request,
+    isMobile,
+  }) => {
+    await seedGuestCart(page);
+    await signUpNova(page);
+    const [mail] = await inboxOf(request, "nova@teste.dev");
+    await page.goto(mail?.link ?? "/");
+    await expect(page).toHaveURL(/\/conta$/);
+    await expectSignedInHeader(page, isMobile);
+    // The guest cart now belongs to the new account (synced once by the landing page).
+    await expect
+      .poll(async () => ((await storedCart(page)) as { state?: { owner?: unknown } }).state?.owner)
+      .toEqual(expect.any(String));
+    // Opened again, the link is used up.
+    await page.goto(mail?.link ?? "/");
+    await expect(page).toHaveURL(/\/entrar\?erro=link$/);
+  });
+
+  test("cadastro repetido de conta pendente: o link leva a criar a senha", async ({
+    page,
+    request,
+  }) => {
+    await signUpNova(page);
+    await signUpNova(page);
+    const inbox = await inboxOf(request, "nova@teste.dev");
+    await page.goto(inbox.at(-1)?.link ?? "/");
+    await expect(page).toHaveURL(/\/redefinir-senha$/);
+    await expect(page.getByRole("heading", { name: "CRIE SUA SENHA" })).toBeVisible();
   });
 
   test("REENVIAR LINK manda um novo link e responde sem revelar a conta", async ({

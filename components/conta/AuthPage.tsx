@@ -28,12 +28,15 @@ async function Screen({
   const params = await searchParams;
   const tab = initialTab === "criar" || first(params.aba) === "criar" ? "criar" : "entrar";
   const mode: AuthMode = first(params.modo) === "recuperar" ? "recuperar" : "entrar";
+  // Set by /auth/confirm and /auth/callback when the link or the social sign-in failed.
+  const linkError = first(params.erro) === "link";
   return (
     <AuthScreen
-      // Same-route query changes (?aba=, ?modo=) must reset the tab and mode kept in state.
-      key={`${tab}:${mode}`}
+      // Same-route query changes (?aba=, ?modo=, ?erro=) must reset the state kept by the screen.
+      key={`${tab}:${mode}:${linkError}`}
       initialTab={tab}
       initialMode={mode}
+      linkError={linkError}
       next={safeNext(first(params.next))}
       authApple={publicEnv.authApple}
     />

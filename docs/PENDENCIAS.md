@@ -23,6 +23,7 @@ Este documento é o ponto de partida do plano de backend.
 | Faixa de preço da loja            | O filtro de faixa de preço está oculto (não há preços)                                                   | Reativar quando existirem preços                                 |
 | Favoritos sem página              | O coração grava o favorito, mas não existe tela "Favoritos" (o item fica oculto no menu de `/conta`)     | Decidir se a página entra (`EngagementPort.favorites` já existe) |
 | Login com Apple                   | Botão atrás de `NEXT_PUBLIC_AUTH_APPLE` (padrão `false`)                                                 | Conta Apple Developer e configuração no Supabase                 |
+| Remetente dos e-mails de login    | `admin_email` e `sender_name` = `[PLACEHOLDER]` em `[auth.email.smtp]` (`supabase/config.toml`)          | Domínio e endereço do remetente; credenciais SMTP do Resend      |
 | Logo                              | O cabeçalho usa a grade de pixels provisória (`LOGO_ROWS`); o conceito está em `docs/design/referencia/` | Arte final da logo                                               |
 | Revisão jurídica                  | Privacidade, Termos e Trocas são rascunhos (`content/legal/*.mdx`, comentários `RASCUNHO`)               | Advogado revisar antes de publicar (ver lista abaixo)            |
 | Meta description de `/encomendas` | Texto escrito pelo implementador, não veio do design                                                     | O dono aprovar ou reescrever                                     |
@@ -56,6 +57,8 @@ Lacunas entre o que a política de privacidade lista e o que o código coleta ho
 - **Gaveta "Continuar".** No desktop o design usa o link "Continuar comprando" em Space Mono 14px; a implementação usa `‹ CONTINUAR JOGANDO` (microcopy do glossário do briefing) em fonte pixel, sem sombra. Manter ou alinhar.
 - **Newsletter.** O formulário tem 520 px como no design; o cartão que o envolve tem 720 px com fundo `surface` (vem da tela de parallax). Aceito.
 - **Tela "Confira seu e-mail" do cadastro** (`/cadastro/confirme-seu-email`). Não existe nos `.dc.html`: usa o cartão do estado "enviado" de `/entrar?modo=recuperar`, com o e-mail mascarado (`a***@teste.dev`), o botão REENVIAR LINK e o link ‹ VOLTAR PARA ENTRAR. O botão REENVIAR LINK também aparece no login de conta não confirmada. Confirmar o visual.
+- **Tela `/redefinir-senha`.** Não existe nos `.dc.html`: usa o cabeçalho e o cartão de `/entrar?modo=recuperar` (NOVA SENHA / CRIE SUA SENHA), os campos "Nova senha" e "Confirmar nova senha" com as regras ao vivo do cadastro e o botão SALVAR NOVA SENHA; ao salvar vai para `/conta` com o toast "Senha alterada.". Também abre quando alguém confirma uma conta pendente que foi cadastrada de novo (a senha foi trocada por uma aleatória). O aviso "Link inválido ou expirado. Peça um novo." de `/entrar?erro=link` é um quadro com borda `danger` acima do login. Confirmar o visual.
+- **E-mails de confirmação e de nova senha** (`supabase/templates/`). Textos escritos pelo implementador no tom da marca, sem prazo de validade do link. O dono aprovar ou reescrever.
 
 ## 3. Obrigações do backend (o mock não cobre)
 
@@ -70,7 +73,7 @@ Lacunas entre o que a política de privacidade lista e o que o código coleta ho
 - **Upload de fotos da troca.** `bodySizeLimit: "21mb"` vale para todas as Server Actions. O backend deve usar upload direto assinado (Supabase Storage) e restaurar o limite padrão.
 - **Analytics (Umami).** O script do Umami precisa de `data-website-id`, que `ConsentScripts` não consegue definir (só recebe `NEXT_PUBLIC_ANALYTICS_SRC`). As variáveis `UMAMI_*` do `docker-compose.yml` (`UMAMI_DB_USER`, `UMAMI_DB_PASSWORD`, `UMAMI_APP_SECRET`) também não estão no `.env.example`.
 - **Usuário só com provedor social não consegue excluir a conta.** `deleteAccount` exige a senha, e quem entrou só com Google/Facebook tem senha vazia. Também não consegue definir senha, embora o erro de `disconnect` diga "Crie uma senha". O adaptador real precisa de um caminho (reautenticação pelo provedor ou criação de senha).
-- **Cache das páginas de produto.** Elas são pré-renderizadas; estoque e descrição ficam congelados até revalidar. O adaptador real precisa de tags de revalidação (`revalidateTag`) ao mudar estoque ou descrição.
+- **Cache das páginas de produto.** Os triggers de `products` chamam `POST /api/revalidate` (pg_net) com os slugs alterados, mas só quando o Vault do projeto tem os segredos `site_url` e `revalidate_secret` (o mesmo valor de `REVALIDATE_SECRET`). Criar os dois em cada ambiente (`select vault.create_secret(...)`); sem eles o catálogo só muda quando o cache expira.
 - **Cartão.** O servidor nunca recebe número nem CVV, só um token do gateway (`CardInput`). Manter: tokenização no navegador (Mercado Pago).
 - **Limite de tentativas.** O cadastro revela se o e-mail já tem conta e não há rate limit; limitar login, cadastro e recuperação de senha.
 - **Webhook do Mercado Pago** com assinatura verificada e idempotência (o mock não simula).

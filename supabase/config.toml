@@ -234,15 +234,25 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# Production e-mail goes through Resend's SMTP. Off locally: Mailpit catches every e-mail.
+# The sender is a placeholder until the owner provides the domain (docs/PENDENCIAS.md).
+[auth.email.smtp]
+enabled = false
+host = "env(RESEND_SMTP_HOST)"
+port = 465
+user = "env(RESEND_SMTP_USER)"
+pass = "env(RESEND_SMTP_PASS)"
+admin_email = "[PLACEHOLDER]"
+sender_name = "[PLACEHOLDER]"
+
+# pt-BR auth e-mails. Links go straight to /auth/confirm: RedirectTo already carries `?next=`.
+[auth.email.template.confirmation]
+subject = "Confirme seu e-mail | Pixel Perfect Artesanato"
+content_path = "./supabase/templates/confirmacao.html"
+
+[auth.email.template.recovery]
+subject = "Crie uma nova senha | Pixel Perfect Artesanato"
+content_path = "./supabase/templates/recuperacao.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

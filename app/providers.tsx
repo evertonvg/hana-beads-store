@@ -6,6 +6,7 @@ import { lazy, Suspense, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { CartHydrator } from "@/components/cart/CartHydrator";
 import { CartSaver } from "@/components/cart/CartSaver";
+import { FinishRedirectAuth } from "@/components/conta/FinishRedirectAuth";
 import { toastOptions } from "@/components/ui/toast";
 
 // Devtools is a devDependency: the import must be dead code in production builds, so the
@@ -28,6 +29,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <CartHydrator />
       <CartSaver />
+      <FinishRedirectAuth />
       <NuqsAdapter>{children}</NuqsAdapter>
       <Toaster toastOptions={toastOptions} />
       {Devtools && (

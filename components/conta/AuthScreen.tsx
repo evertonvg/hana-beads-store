@@ -19,6 +19,8 @@ type Props = {
   /** Already sanitized by `safeNext` on the server. */
   next: string;
   authApple: boolean;
+  /** An e-mail link or social sign-in failed (`/entrar?erro=link`): shown above the login. */
+  linkError?: boolean;
 };
 
 const lgpd = (
@@ -78,7 +80,7 @@ function Sent({ onBack }: { onBack: () => void }) {
  * sign-up without a navigation. From `md` it shows only the one the URL asked for (the tabs are
  * hidden): `/entrar` (login, password recovery) or `/cadastro` (sign-up).
  */
-export function AuthScreen({ initialTab, initialMode, next, authApple }: Props) {
+export function AuthScreen({ initialTab, initialMode, next, authApple, linkError }: Props) {
   const [tab, setTab] = useState<AuthTab>(initialTab);
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const wrapper = cn(
@@ -123,6 +125,14 @@ export function AuthScreen({ initialTab, initialMode, next, authApple }: Props) 
               PLAYER <span className="text-accent">LOGIN</span>
             </h1>
           </div>
+          {linkError ? (
+            <p
+              role="alert"
+              className="order-2 m-0 border-[3px] border-danger bg-bg p-3.5 text-center text-sm leading-relaxed text-danger-text"
+            >
+              Link inválido ou expirado. Peça um novo.
+            </p>
+          ) : null}
           <div className="order-3 flex flex-col gap-3.5 md:order-4">
             <Divider className="hidden md:flex">OU ENTRE COM</Divider>
             <SocialButtons next={next} apple={authApple} />
